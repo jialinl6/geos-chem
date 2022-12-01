@@ -1,0 +1,4 @@
+name = "GeosCore"
+uuid = "40a81ec6-a36c-443c-a67d-1303de90e991"
+authors = ["jaacko-torus <jaacko.torus@gmail.com>"]
+version = "0.1.0"
