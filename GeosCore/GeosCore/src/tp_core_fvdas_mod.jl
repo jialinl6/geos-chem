@@ -1,7 +1,801 @@
 module tpcore_fvdas_mod
 
 """
-Subroutine Do_Cross_Terms_Pole_I2d2 sets "va" at the Poles.
+function Set\_Jn\_Js determines Jn and Js, by looking
+	!  where Courant number is > 1.
+
+! !AUTHOR:
+!   Original code from Shian-Jiann Lin, DAO)
+!   John Tannahill, LLNL (jrt@llnl.gov)
+!
+! !REMARKS:
+!   We cannot parallelize this function because there is a CYCLE statement
+!   within the outer loop.
+!
+! !REVISION HISTORY:
+!   05 Dec 2008 - C. Carouge  - Replaced TPCORE routines by S-J Lin and Kevin
+!                               Yeh with the TPCORE routines from GMI model.
+!                               This eliminates the polar overshoot in the
+!                               stratosphere.
+!  See https://github.com/geoschem/geos-chem for complete history
+"""
+function set_jn_js!(
+	jn,
+	js,
+	crx,
+	ilo,
+	ihi,
+	julo,
+	jhi,
+	ju1_gl,
+	j2_gl,
+	j1p,
+	j2p,
+	i1,
+	i2,
+	ju1,
+	j2,
+	k1,
+	k2
+)::Nothing
+	# !
+	# ! !INPUT PARAMETERS:
+	# !
+	# 	! Global latitude indices at the edges of the S/N polar caps
+	# 	! J1P=JU1_GL+1; J2P=J2_GL-1 for a polar cap of 1 latitude band
+	# 	! J1P=JU1_GL+2; J2P=J2_GL-2 for a polar cap of 2 latitude bands
+	# 	INTEGER, INTENT(IN)   :: J1P,    J2P
+
+	# 	! Global min & max longitude (I) and latitude (J) indices
+	# 	INTEGER, INTENT(IN)   :: JU1_GL, J2_GL
+
+	# 	! Local min & max longitude (I), latitude (J), altitude (K) indices
+	# 	INTEGER, INTENT(IN)   :: I1,     I2
+	# 	INTEGER, INTENT(IN)   :: JU1,    J2
+	# 	INTEGER, INTENT(IN)   :: K1,     K2
+
+	# 	! Local min & max longitude (I) and latitude (J) indices
+	# 	INTEGER, INTENT(IN)   :: ILO,    IHI
+	# 	INTEGER, INTENT(IN)   :: JULO,   JHI
+
+	# 	! Courant number in E-W direction
+	# 	REAL(fp),  INTENT(IN)  :: crx(ILO:IHI, JULO:JHI, K1:K2)
+	# !
+	# ! !OUTPUT PARAMETERS:
+	# !
+	# 	! Northward of latitude index = jn; Courant numbers could be > 1,
+	# 	! so use the flux-form semi-Lagrangian scheme
+	# 	INTEGER, INTENT(OUT) :: jn(K1:K2)
+
+	# 	! Southward of latitude index = js; Courant numbers could be > 1,
+	# 	! so use the flux-form semi-Lagrangian scheme
+	# 	INTEGER, INTENT(OUT) :: js(K1:K2)
+
+	js0 = (j2_gl + 1) / 2
+	jn0 = j2_gl - js0 + 1
+
+	jst = max(ju1, j1p)
+	jend = min(j2, js0)
+
+	@label kloop1
+	for ik = k1:k2
+		js[ik] = j1p
+
+		for ij = jend:-1:jst, il = i1:i2
+			if abs(crx[il, ij, ik]) > 1.0
+				js[ik] = ij
+				
+				@goto ikloop1
+			end
+		end
+	end
+
+	jst = max(ju1, jn0)
+	jend = min(j2, j2p)
+
+	@label ikloop2
+	for ik = k1:k2
+		jn[ik] = j2p
+
+		for ij = jst:jend, il = i1:i2
+			if abs(crx[il, ij, ik]) > 1.0
+				jn[ik] = ij
+				
+				@goto ikloop2
+			end
+		end
+	end
+end
+
+"""
+function Calc\_Advec\_Cross\_Terms calculates the advective
+	!  cross terms.
+
+## Arguments
+
+! !AUTHOR:
+!   Original code from Shian-Jiann Lin, DAO)
+!   John Tannahill, LLNL (jrt@llnl.gov)
+!
+! !REVISION HISTORY:
+!   05 Dec 2008 - C. Carouge  - Replaced TPCORE routines by S-J Lin and Kevin
+!                               Yeh with the TPCORE routines from GMI model.
+!                               This eliminates the polar overshoot in the
+!                               stratosphere.
+!  See https://github.com/geoschem/geos-chem for complete history
+"""
+function calc_advec_cross_terms!(
+	jn,
+	js,
+	qq1,
+	qqu,
+	qqv,
+	ua,
+	va,
+	j1p,
+	j2p,
+	i2_gl,
+	ju1_gl,
+	j2_gl,
+	ilo,
+	ihi,
+	julo,
+	jhi,
+	i1,
+	i2,
+	ju1,
+	j2,
+	cross
+)::Nothing
+	# ! !INPUT PARAMETERS:
+	# !
+	# 	! Global latitude indices at the edges of the S/N polar caps
+	# 	! J1P=JU1_GL+1; J2P=J2_GL-1 for a polar cap of 1 latitude band
+	# 	! J1P=JU1_GL+2; J2P=J2_GL-2 for a polar cap of 2 latitude bands
+	# 	INTEGER, INTENT(IN)  :: J1P,    J2P
+
+	# 	! Global min & max longitude (I) and latitude (J) indices
+	# 	INTEGER, INTENT(IN)  ::         I2_GL
+	# 	INTEGER, INTENT(IN)  :: JU1_GL, J2_GL
+
+	# 	! Local min & max longitude (I), latitude (J), altitude (K) indices
+	# 	INTEGER, INTENT(IN)  :: I1,     I2
+	# 	INTEGER, INTENT(IN)  :: JU1,    J2
+
+	# 	! Local min & max longitude (I) and latitude (J) indices
+	# 	INTEGER, INTENT(IN)  :: ILO,    IHI
+	# 	INTEGER, INTENT(IN)  :: JULO,   JHI
+
+	# 	! Northward of latitude index = jn, Courant numbers could be > 1,
+	# 	! so use the flux-form semi-Lagrangian scheme
+	# 	INTEGER, INTENT(IN)  :: Jn
+
+	# 	! Southward of latitude index = js, Courant numbers could be > 1,
+	# 	! so use the flux-form semi-Lagrangian scheme
+	# 	INTEGER, INTENT(IN)  :: Js
+
+	# 	! Species concentration (mixing ratio)
+	# 	REAL(fp),  INTENT(IN)  :: qq1(ILO:IHI, JULO:JHI)
+
+	# 	! Average of Courant numbers from il and il+1
+	# 	REAL(fp),  INTENT(IN)  :: ua (ILO:IHI, JULO:JHI)
+
+	# 	! Average of Courant numbers from ij and ij+1
+	# 	REAL(fp),  INTENT(IN)  :: va (ILO:IHI, JULO:JHI)
+
+	# 	! Logical switch: If CROSS=T then cross-terms are being computed
+	# 	LOGICAL, INTENT(IN)  :: CROSS
+	# !
+	# ! !OUTPUT PARAMETERS:
+	# !
+	# 	! Concentration contribution from E-W advection [mixing ratio]
+	# 	REAL(fp),  INTENT(OUT) :: qqu(ILO:IHI, JULO:JHI)
+
+	# 	! concentration contribution from N-S advection [mixing ratio]
+	# 	REAL(fp),  INTENT(OUT) :: qqv(ILO:IHI, JULO:JHI)
+
+
+	qtmp = zeros(AbstractFloat, (-i2 / 3):(i2 + i2 / 3), julo:jhi)
+
+	for ij = julo:jhi
+		for i = 1:i2
+			qtmp[i, ij] = qq1[i, ij]
+		end
+
+		for il = (-i2 / 3):0
+			qtmp[il, ij] = qq1[i2 + il, ij]
+		end
+
+		for il = (i2 + 1):(i2 + i2 / 3)
+			qtmp[il, ij] = qq1[il - i2, ij]
+		end
+	end
+
+	if !cross
+		qqv[:, :] .= qq1[:, :]
+		qqu[:, :] .= qq1[:, :]
+	else
+		qqu[:, :] .= 0.0
+		qqv[:, :] .= 0.0
+
+		for ij = j1p:j2p
+			if ij <= js || ij >= jn
+				# In Polar area, so need to deal with large courant numbers.
+				for il = i1:i2
+					# !c?
+					iu = ua[il, ij]
+					riu = iu
+					ru = ua[il, ij] - riu
+					iu = il - iu
+
+					if ua[il, ij] >= 0.0
+						qqu[il, ij] = qtmp[iu, ij] + ru * (qtmp[iu - 1, ij] - qtmp[iu, ij])
+					else
+						qqu[il, ij] = qtmp[iu, ij] + ru * (qtmp[iu, ij] - qtmp[iu + 1, ij])
+					end
+
+					qqu[il, ij] = qqu[il, ij] - qtmp[il, ij]
+				end
+			else # js < ij < jn
+				# Do interior area (use PPM).
+
+				for il = i1:i2
+					ril = il
+					iu = ril - ua[il, ij]
+
+					qqu[il, ij] = ua[il, ij] * (qtmp[iu, ij] - qtmp[iu + 1, ij])
+				end
+			end
+
+			for il = i1:i2
+				# !c?
+				rij = ij
+				jv = rij - va[il, ij]
+
+				qqv[il, ij] = va[il, ij] * (qtmp[il, jv] - qtmp[il, jv + 1])
+			end
+		end
+
+		for ij = ju1:j2, il = i1:i2
+			qqu[il, ij] = qtmp[il, ij] + (0.5 * qqu[il, ij])
+
+			qqv[il, ij] = qtmp[il, ij] + (0.5 * qqv[il, ij])
+		end
+	end
+end
+
+"""
+function Qckxyz routine checks for "filling".
+	
+## Arguments
+
+! !AUTHOR:
+!   Original code from Shian-Jiann Lin, DAO)
+!   John Tannahill, LLNL (jrt@llnl.gov)
+!
+! !REVISION HISTORY:
+05 Dec 2008 - C. Carouge - Replaced TPCORE routines by S-J Lin and Kevin Yeh with the TPCORE routines from GMI model. This eliminates the polar overshoot in the stratosphere. See https://github.com/geoschem/geos-chem for complete history.
+"""
+function qckxyz!(
+	dq1,
+	j1p,
+	j2p,
+	ju1_gl,
+	j2_gl,
+	ilo,
+	ihi,
+	julo,
+	jhi,
+	i1,
+	i2,
+	ju1,
+	j2,
+	k1,
+	k2
+)::Nothing
+	# !
+	# ! !INPUT PARAMETERS:
+	# !
+	# 	! Global latitude indices at the edges of the S/N polar caps
+	# 	! J1P=JU1_GL+1; J2P=J2_GL-1 for a polar cap of 1 latitude band
+	# 	! J1P=JU1_GL+2; J2P=J2_GL-2 for a polar cap of 2 latitude bands
+	# 	INTEGER, INTENT(IN)  :: J1P,    J2P
+
+	# 	! Global min & max latitude (J) indices
+	# 	INTEGER, INTENT(IN)  :: JU1_GL, J2_GL
+
+	# 	! Local min & max longitude (I), latitude (J), altitude (K) indices
+	# 	INTEGER, INTENT(IN)  :: I1,     I2
+	# 	INTEGER, INTENT(IN)  :: JU1,    J2
+	# 	INTEGER, INTENT(IN)  :: K1,     K2
+
+	# 	! Local min & max longitude (I) and latitude (J) indices
+	# 	INTEGER, INTENT(IN)  :: ILO,    IHI
+	# 	INTEGER, INTENT(IN)  :: JULO,   JHI
+	# !
+	# ! !INPUT/OUTPUT PARAMETERS:
+	# !
+	# 	! Species density [hPa]
+	# 	REAL(fp),  INTENT(INOUT) :: dq1(ILO:IHI, JULO:JHI, K1:K2)
+
+	fill_diag = false
+	
+	ip = 0
+	
+	# Top layer.
+
+	k1p1 = k1 + 1
+
+	# NOTE: Translate parallel for below to parallel loop in Julia
+	# !$OMP PARALLEL DO          &
+	# !$OMP DEFAULT( SHARED )    &
+	# !$OMP PRIVATE( IJ, IL, IP )
+	for ij = j1p:j2p, il = i1:i2
+		if dq1[il, ij, k1] < 0.0
+			ip = ip + 1
+
+			dq1[il, ij, k1p1] = dq1[il, ij, k1p1] + dq1[il, ij, k1]
+			dq1[il, ij, k1] = 0.0
+		end
+	end
+	
+	for ik = (k1 + 1):(k2 - 1)
+		# NOTE: Translate parallel for below to parallel loop in Julia
+		# !$OMP PARALLEL DO                         &
+		# !$OMP DEFAULT( SHARED )                   &
+		# !$OMP PRIVATE( IJ, IL, IP, QUP, QLY, DUP )
+		for ij = j1p:j2p, il = i1:i2
+			if dq1[il, ij, ik] < 0.0
+				ip = ip + 1
+				
+				# From above.
+
+				qup = dq1[il, ij, ik - 1]
+				qly = -dq1[il, ij, ik]
+				dup = min(qly, qup)
+
+				dq1[il, ij, ik - 1] = qup - dup
+				dq1[il, ij, ik] = dup - qly
+				
+				# From below.
+
+				dq1[il, ij, ik + 1] = dq1[il, ij, ik + 1] + dq1[il, ij, ik]
+				dq1[il, ij, ik] = 0.0
+			end
+		end
+	end
+
+	# Bottom layer.
+
+	sum  = 0.0
+	k2m1 = k2 - 1
+
+	# NOTE: Translate parallel for below to parallel sum in Julia
+	# NOTE: Sum seems to be not used in the loop below!
+	# !$OMP PARALLEL DO                          &
+	# !$OMP DEFAULT( SHARED )                    &
+	# !$OMP PRIVATE( IJ, IL, IP, QUP, QLY, DUP ) &
+	# !$OMP REDUCTION( +:SUM )
+	for ij = j1p:j2p, il = i1:i2
+		if dq1[il, ij, k2] < 0.0
+			ip = ip + 1
+			
+			# From above.
+
+			qup = dq1[il, ij, k2m1]
+			qly = -dq1[il, ij, k2]
+			dup = min[qly, qup]
+
+			dq1[il, ij, k2m1] = qup - dup
+			
+			# From "below" the surface.
+
+			sum = sum + qly - dup
+
+			dq1[il, ij, k2] = 0.0
+		end
+	end
+
+	# We don't want to replace zero values by 1e-30. (ccc, 11/20/08)
+	#   where ((dq1(i1:i2,j1p:j2p,:) < 1.0d-30)) &
+	#           dq1(i1:i2,j1p:j2p,:) = 1.0d-30
+end
+
+"""
+function Set_Lmts sets ILMT, JLMT, KLMT.
+
+! !AUTHOR:
+!   Original code from Shian-Jiann Lin, DAO)
+!   John Tannahill, LLNL (jrt@llnl.gov)
+!
+! !REVISION HISTORY:
+!   05 Dec 2008 - C. Carouge  - Replaced TPCORE routines by S-J Lin and Kevin
+!                               Yeh with the TPCORE routines from GMI model.
+!                               This eliminates the polar overshoot in the
+!                               stratosphere.
+!  See https://github.com/geoschem/geos-chem for complete history
+"""
+function set_lmts!(
+	ilmt,
+	jlmt,
+	klmt,
+	i2_gl,
+	j2_gl,
+	iord,
+	jord,
+	kord
+)::Nothing
+	# ! !INPUT PARAMETERS:
+	# !
+	# 	! Global maximum longitude (I) and longitude (J) indices
+	# 	INTEGER, INTENT(IN)  :: I2_GL, J2_GL
+
+	# 	! Flags to denote E-W, N-S, and vertical transport schemes
+	# 	! (See REMARKS section of routine Tpcore_FvDas for more info)
+	# 	INTEGER, INTENT(IN)  :: iord, jord, kord
+	# !
+	# ! !OUTPUT PARAMETERS:
+	# !
+	# 	! Controls various options in E-W advection
+	# 	INTEGER, INTENT(OUT) :: ilmt
+
+	# 	! Controls various options in N-S advection
+	# 	INTEGER, INTENT(OUT) :: jlmt
+
+	# 	! Controls various options in vertical advection
+	# 	INTEGER, INTENT(OUT) :: klmt
+
+	j2_glm1 = j2_gl - 1
+
+	# !c?
+	if iord <= 0
+		if i2_gl >= 144
+			ilmt = 0
+		elseif i2_gl >= 72
+			ilmt = 1
+		else
+			ilmt = 2
+		end
+	else
+		ilmt = iord - 3
+	end
+
+	# !c?
+	if jord <= 0
+		if j2_glm1 >= 90
+			jlmt = 0
+		elseif j2_glm1 >= 45
+			jlmt = 1
+		else
+			jlmt = 2
+		end
+	else
+		jlmt = jord - 3
+	end
+
+	klmt = max(kord - 3, 0)
+end
+
+"""
+! !DESCRIPTION: function Set\_Press\_Terms sets the pressure terms:
+!  DELP1, DELPM, PU.
+
+## Arguments
+
+! !AUTHOR:
+!   Original code from Shian-Jiann Lin, DAO)
+!   John Tannahill, LLNL (jrt@llnl.gov)
+!
+! !REVISION HISTORY:
+!   05 Dec 2008 - C. Carouge  - Replaced TPCORE routines by S-J Lin and Kevin
+!                               Yeh with the TPCORE routines from GMI model.
+!                               This eliminates the polar overshoot in the
+!                               stratosphere.
+!  See https://github.com/geoschem/geos-chem for complete history
+"""
+function set_press_terms!(
+	dap,
+	dbk,
+	pres1,
+	pres2,
+	delp1,
+	delpm,
+	pu,
+	ju1_gl,
+	j2_gl,
+	ilo,
+	ihi,
+	julo,
+	jhi,
+	j1p,
+	j2p,
+	i1,
+	i2,
+	ju1,
+	j2
+)::Nothing
+	# !
+	# ! !INPUT PARAMETERS:
+	# !
+	# 	! Global latitude indices at the edges of the S/N polar caps
+	# 	! J1P=JU1_GL+1; J2P=J2_GL-1 for a polar cap of 1 latitude band
+	# 	! J1P=JU1_GL+2; J2P=J2_GL-2 for a polar cap of 2 latitude bands
+	# 	INTEGER, INTENT(IN)  :: J1P,    J2P
+
+	# 	! Global min & max latitude (J) indices
+	# 	INTEGER, INTENT(IN)  :: JU1_GL, J2_GL
+
+	# 	! Local min & max longitude (I), latitude (J), altitude (K) indices
+	# 	INTEGER, INTENT(IN)  :: I1,     I2
+	# 	INTEGER, INTENT(IN)  :: JU1,    J2
+
+	# 	! Local min & max longitude (I) and latitude (J) indices
+	# 	INTEGER, INTENT(IN)  :: ILO,    IHI
+	# 	INTEGER, INTENT(IN)  :: JULO,   JHI
+
+	# 	! Pressure difference across layer from (ai * pt) term [hPa]
+	# 	REAL(fp),  INTENT(IN)  :: dap
+
+	# 	! Difference in bi across layer - the dSigma term
+	# 	REAL(fp),  INTENT(IN)  :: dbk
+
+	# 	! Surface pressure at t1 [hPa]
+	# 	REAL(fp),  INTENT(IN)  :: pres1(ILO:IHI, JULO:JHI)
+
+	# 	! Surface pressure at t1+tdt [hPa]
+	# 	REAL(fp),  INTENT(IN)  :: pres2(ILO:IHI, JULO:JHI)
+	# !
+	# ! !OUTPUT PARAMETERS:
+	# !
+	# 	! Pressure thickness, the pseudo-density in a
+	# 	! hydrostatic system at t1 [hPa]
+	# 	REAL(fp), INTENT(OUT) :: delp1(ILO:IHI, JULO:JHI)
+
+	# 	! Pressure thickness, the pseudo-density in a
+	# 	! hydrostatic system at t1+tdt/2 (approximate) [hPa]
+	# 	REAL(fp), INTENT(OUT) :: delpm(ILO:IHI, JULO:JHI)
+
+	# 	! Pressure at edges in "u" [hPa]
+	# 	REAL(fp), INTENT(OUT) :: pu(ILO:IHI, JULO:JHI)
+	# !
+	delp1[:, :] .= dap + (dbk * pres1[:, :])
+
+	delpm[:, :] .= dap + (dbk * 0.5 * (pres1[:, :] + pres2[:, :]))
+	
+	for ij = j1p:j2p
+		pu[1, ij] = 0.5 * (delpm[1, ij] + delpm[i2, ij])
+		for il = (i1 + 1):i2
+			pu[il, ij] = 0.5 * (delpm[il, ij] + delpm[il - 1, ij])
+		end
+	end
+end
+
+"""
+function Calc_Courant calculates courant numbers from the horizontal mass fluxes.
+
+## Arguments
+- `cose::Array{AbstractFloat}` - IN
+- `delpm::Matrix{AbstractFloat}` - IN
+- `pu::Matrix{AbstractFloat}` - IN
+- `xmass::Matrix{AbstractFloat}` - IN
+- `ymass::Matrix{AbstractFloat}` - IN
+- `crx::Matrix{AbstractFloat}` - OUT
+- `cry::Matrix{AbstractFloat}` - OUT
+- `j1p::Integer` - IN
+- `j2p::Integer` - IN
+- `ju1_gl::Integer` - IN
+- `j2_gl::Integer` - IN
+- `ilo::Integer` - IN
+- `ihi::Integer` - IN
+- `julo::Integer` - IN
+- `jhi::Integer` - IN
+- `i1::Integer` - IN
+- `i2::Integer` - IN
+- `ju1::Integer` - IN
+- `j2::Integer` - IN
+
+## Author
+Original code from Shian-Jiann Lin, DAO).
+John Tannahill, LLNL (jrt@llnl.gov).
+
+## Revision History
+05 Dec 2008 - C. Carouge - Replaced TPCORE routines by S-J Lin and Kevin Yeh with the TPCORE routines from GMI model. This eliminates the polar overshoot in the stratosphere. See https://github.com/geoschem/geos-chem for complete history.
+"""
+function calc_courant!(
+	cose::Array{AbstractFloat},
+	delpm::Matrix{AbstractFloat},
+	pu::Matrix{AbstractFloat},
+	xmass::Matrix{AbstractFloat},
+	ymass::Matrix{AbstractFloat},
+	crx::Matrix{AbstractFloat},
+	cry::Matrix{AbstractFloat},
+	j1p::Integer,
+	j2p::Integer,
+	ju1_gl::Integer,
+	j2_gl::Integer,
+	ilo::Integer,
+	ihi::Integer,
+	julo::Integer,
+	jhi::Integer,
+	i1::Integer,
+	i2::Integer,
+	ju1::Integer,
+	j2::Integer
+)::Nothing
+	crx[:, :] .= 0.0
+	cry[:, :] .= 0.0
+	
+	# Calculate E-W and N-S horizontal mass fluxes.
+
+	for ij = j1p:j2p
+		crx[:, ij] = xmass[:, ij] / pu[:, ij]
+
+		cry[:, ij] .= ymass[:, ij] / ((0.5 * cose[ij]) * (delpm[:, ij] + delpm[:, ij - 1]))
+	end
+
+	cry[:, j2p + 1] .= ymass[:, j2p + 1] / ((0.5 * cose[j2p + 1]) * (delpm[:, j2p + 1] + delp[:, j2p]))
+end
+
+"""
+function Calc_Divergence calculates the divergence.
+	
+## Arguments
+- `do_reduction::Bool` - IN
+- `geofac_pc::AbstractFloat` - IN
+- `geofac::Array{AbstractFloat}` - IN
+- `dpi::Matrix{AbstractFloat}` - OUT
+- `xmass::Matrix{AbstractFloat}` - IN
+- `ymass::Matrix{AbstractFloat}` - IN
+- `j1p::Integer` - IN
+- `j2p::Integer` - IN
+- `i1_gl::Integer` - IN
+- `i2_gl::Integer` - IN
+- `ju1_gl::Integer` - IN
+- `j2_gl::Integer` - IN
+- `ilo::Integer` - IN
+- `ihi::Integer` - IN
+- `julo::Integer` - IN
+- `jhi::Integer` - IN
+- `i1::Integer` - IN
+- `i2::Integer` - IN
+- `ju1::Integer` - IN
+- `j2::Integer` - IN
+
+## Author
+Original code from Shian-Jiann Lin, DAO.
+John Tannahill, LLNL (jrt@llnl.gov).
+
+## Revision History
+05 Dec 2008 - C. Carouge - Replaced TPCORE routines by S-J Lin and Kevin Yeh with the TPCORE routines from GMI model. This eliminates the polar overshoot in the stratosphere. See https://github.com/geoschem/geos-chem for complete history.
+"""
+function calc_divergence!(
+	do_reduction::Bool,
+	geofac_pc::AbstractFloat,
+	geofac::Array{AbstractFloat},
+	dpi::Matrix{AbstractFloat},
+	xmass::Matrix{AbstractFloat},
+	ymass::Matrix{AbstractFloat},
+	j1p::Integer,
+	j2p::Integer,
+	i1_gl::Integer,
+	i2_gl::Integer,
+	ju1_gl::Integer,
+	j2_gl::Integer,
+	ilo::Integer,
+	ihi::Integer,
+	julo::Integer,
+	jhi::Integer,
+	i1::Integer,
+	i2::Integer,
+	ju1::Integer,
+	j2::Integer
+)::Nothing
+	# Calculate N-S divergence.
+
+	for ij = j1p:j2p
+		dpi[:, ij] .= (ymass[:, ij] - ymass[:, ij + 1]) * geofac[ij]
+
+		# Calculate E-W divergence.
+		
+		for il = i1:(i2 - 1)
+			dpi[il, ij] = dpi[il, ij] + xmass[il, ij] - xmass[il + 1, ij]
+		end
+
+		dpi[i2, ij] = dpi[i2, ij] + xmass[i2, ij] - xmass[1, ij]
+	end
+
+	# call Do_Divergence_Pole_Sum(do_reduction, geofac_pc, dpi, ymass, i1_gl, i2_gl, j1p, j2p, ju1_gl, j2_gl, ilo, ihi, julo, jhi, i1, i2, ju1, j2)
+	
+	if j1p != ju1_gl + 1
+		# Polar cap enlarged:  copy dpi to polar ring.
+		
+		dpi[:, ju1 + 1] .= dpi[:, ju1]
+		dpi[:, j2 - 1] .= dpi[:, j2]
+	end
+end
+
+"""
+function Do_Divergence_Pole_Sum sets the divergence at the Poles.
+
+## Arguments
+- `do_reduction::Bool` - IN
+- `geofac_pc::AbstractFloat` - IN
+- `dpi::Matrix{AbstractFloat}` - OUT
+- `ymass::Matrix{AbstractFloat}` - IN
+- `i1_gl::Integer` - IN
+- `i2_gl::Integer` - IN
+- `j1p::Integer` - IN
+- `j2p::Integer` - IN
+- `ju1_gl::Integer` - IN
+- `j2_gl::Integer` - IN
+- `ilo::Integer` - IN
+- `ihi::Integer` - IN
+- `julo::Integer` - IN
+- `jhi::Integer` - IN
+- `i1::Integer` - IN
+- `i2::Integer` - IN
+- `ju1::Integer` - IN
+- `j2::Integer` - IN
+	
+## Author
+Original code from Shian-Jiann Lin, DAO.
+John Tannahill, LLNL (jrt@llnl.gov).
+
+## Revision History
+05 Dec 2008 - C. Carouge - Replaced TPCORE routines by S-J Lin and Kevin Yeh with the TPCORE routines from GMI model. This eliminates the polar overshoot in the stratosphere. See https://github.com/geoschem/geos-chem for complete history.
+"""
+function do_divergence_pole_sum!(
+	do_reduction::Bool,
+	geofac_pc::AbstractFloat,
+	dpi::Matrix{AbstractFloat},
+	ymass::Matrix{AbstractFloat},
+	i1_gl::Integer,
+	i2_gl::Integer,
+	j1p::Integer,
+	j2p::Integer,
+	ju1_gl::Integer,
+	j2_gl::Integer,
+	ilo::Integer,
+	ihi::Integer,
+	julo::Integer,
+	jhi::Integer,
+	i1::Integer,
+	i2::Integer,
+	ju1::Integer,
+	j2::Integer
+)::Nothing
+	ri2 = i2_gl
+	
+	if ju1 == ju1_gl
+		sumsp = 0.0
+		for il = i1:i2
+			sumsp = sumsp + ymass[il, j1p]
+		end
+
+		mean_sp = -sumsp / ri2 * geofac_pc
+
+		for il = i1:i2
+			dpi[il, ju1] = mean_sp
+		end
+	end
+		
+	if j2 == j2_gl
+		sumnp = 0.0
+
+		for il = i1:i2
+			sumnp = sumnp + ymass[il, j2p + 1]
+		end
+
+		mean_np = sumnp / ri2 * geofac_pc
+
+		for il = i1:i2
+			dpi[il, j2] = mean_np
+		end
+	end
+end
+
+"""
+function Do_Cross_Terms_Pole_I2d2 sets "va" at the Poles.
 
 ## Arguments
 - `cry::Integer` - IN
@@ -66,7 +860,7 @@ function do_cross_terms_pole_i2d2!(
 end
 
 """
-Subroutine Xadv_Dao2 is the advective form E-W operator for computing the adx (E-W) cross term.
+function Xadv_Dao2 is the advective form E-W operator for computing the adx (E-W) cross term.
 
 ## Arguments
 - `iad::Integer` - IN
@@ -223,7 +1017,7 @@ function xadv_dao2!(
 end
 
 """
-Subroutine Yadv_Dao2 is the advective form N-S operator for computing the ady (N-S) cross term.
+function Yadv_Dao2 is the advective form N-S operator for computing the ady (N-S) cross term.
 
 ## Arguments
 - `iad::Integer` - IN
@@ -317,7 +1111,7 @@ function yadv_dao2!(
 end
 
 """
-Subroutine Do_Yadv_Pole_I2d2 sets "qquwk" at the Poles.
+function Do_Yadv_Pole_I2d2 sets "qquwk" at the Poles.
 
 ## Arguments
 - `qqu::Integer` - IN
@@ -382,7 +1176,7 @@ function do_yadv_pole_i2d2!(
 end
 
 """
-Subroutine Do_Yadv_Pole_Sum sets the cross term due to N-S advection at the Poles.
+function Do_Yadv_Pole_Sum sets the cross term due to N-S advection at the Poles.
 
 ## Arguments
 - `ady::Matrix{AbstractFloat}` - INOUT
@@ -466,7 +1260,7 @@ function do_yadv_pole_sum!(
 end
 
 """
-Subroutine Xtp does horizontal advection in the E-W direction.
+function Xtp does horizontal advection in the E-W direction.
 
 ## Arguments
 - `ilmt::Integer` - IN
@@ -640,7 +1434,7 @@ function xtp!(
 end
 
 """
-Subroutine Xmist computes the linear tracer slope in the E-W direction. It uses the Lin et. al. 1994 algorithm.
+function Xmist computes the linear tracer slope in the E-W direction. It uses the Lin et. al. 1994 algorithm.
 
 ## Author
 Original code from Shian-Jiann Lin, DAO.
@@ -691,7 +1485,7 @@ function xmist!(
 end
 
 """
-Subroutine Fxppm is the 1D "outer" flux form operator based on the Piecewise Parabolic Method (PPM; see also Lin and Rood 1996) for computing the fluxes in the E-W direction.
+function Fxppm is the 1D "outer" flux form operator based on the Piecewise Parabolic Method (PPM; see also Lin and Rood 1996) for computing the fluxes in the E-W direction.
 
 ## Arguments
 - `ij::Integer` - IN
@@ -819,7 +1613,7 @@ function fxppm!(
 end
 
 """
-Subroutine Lmtppm enforces the full monotonic, semi-monotonic, or the positive-definite constraint to the sub-grid parabolic distribution of the Piecewise Parabolic Method (PPM).
+function Lmtppm enforces the full monotonic, semi-monotonic, or the positive-definite constraint to the sub-grid parabolic distribution of the Piecewise Parabolic Method (PPM).
 
 ## Arguments
 - `lenx::Integer` - IN
@@ -913,7 +1707,7 @@ function lmtppm!(
 end
 
 """
-Subroutine Ytp does horizontal advection in the N-S direction.
+function Ytp does horizontal advection in the N-S direction.
 
 ## Arguments
 - `jlmt::Integer` - IN
@@ -1021,7 +1815,7 @@ function ytp!(
 end
 
 """
-Subroutine ymist computes the linear tracer slope in the N-S direction.  It uses the Lin et. al. 1994 algorithm.
+function ymist computes the linear tracer slope in the N-S direction.  It uses the Lin et. al. 1994 algorithm.
 
 ## Arguments
 - `id::Integer` - IN
@@ -1106,7 +1900,7 @@ function ymist!(
 end
 
 """
-Subroutine do_ymist_pole1_i2d2 sets "dcy" at the Poles.
+function do_ymist_pole1_i2d2 sets "dcy" at the Poles.
 
 ## Arguments
 - `dcy::Matrix{AbstractFloat}` - OUT
@@ -1197,7 +1991,7 @@ function do_ymist_pole1_i2d2!(
 end
 
 """
-Subroutine do_ymist_pole2_i2d2 sets "dcy" at the Poles.
+function do_ymist_pole2_i2d2 sets "dcy" at the Poles.
 
 ## Arguments
 - `dcy::Matrix{AbstractFloat}` - OUT
@@ -1288,7 +2082,7 @@ function do_ymist_pole2_i2d2!(
 end
 
 """
-Subroutine fyppm is the 1D "outer" flux form operator based on the Piecewise Parabolic Method (PPM; see also Lin and Rood 1996) for computing the fluxes in the N - S direction.
+function fyppm is the 1D "outer" flux form operator based on the Piecewise Parabolic Method (PPM; see also Lin and Rood 1996) for computing the fluxes in the N - S direction.
 
 ## Arguments
 - `jlmt::Integer` - IN
@@ -1408,7 +2202,7 @@ function fyppm!(
 end
 
 """
-Subroutine do_fyppm_pole_i2d2 sets "al" & "ar" at the Poles.
+function do_fyppm_pole_i2d2 sets "al" & "ar" at the Poles.
 
 ## Arguments
 - `al::Matrix{AbstractFloat}` - INOUT
@@ -1460,7 +2254,7 @@ function do_fyppm_pole_i2d2!(
 end
 
 """
-Subroutine do_ytp_pole_sum sets "dq1" at the Poles.
+function do_ytp_pole_sum sets "dq1" at the Poles.
 
 ## Arguments
 - `geofac_pc::AbstractFloat` - IN
@@ -1553,7 +2347,7 @@ function do_ytp_pole_sum!(
 end
 
 """
-Subroutine fzppm is the 1D "outer" flux form operator based on the Piecewise Parabolic Method (PPM; see also Lin and Rood 1996) for computing the fluxes in the vertical direction.
+function fzppm is the 1D "outer" flux form operator based on the Piecewise Parabolic Method (PPM; see also Lin and Rood 1996) for computing the fluxes in the vertical direction.
 
 fzppm was modified by S. - J. Lin, 12/14/98, to allow the use of the KORD=7 (klmt=4) option. KORD=7 enforces the 2nd monotonicity constraint of Huynh (1996). Note that in Huynh's original scheme, two constraints are necessary for the preservation of monotonicity. To use Huynh's algorithm, it was modified as follows. The original PPM is still used to obtain the first guesses for the cell edges, and as such Huynh's 1st constraint is no longer needed. Huynh's median function is also replaced by a simpler yet functionally equivalent in - line algorithm.
 
@@ -1851,7 +2645,7 @@ function fzppm!(
 end
 
 """
-Subroutine average_press_poles averages pressure at the Poles when the Polar cap is enlarged. It makes the last two latitudes equal.
+function average_press_poles averages pressure at the Poles when the Polar cap is enlarged. It makes the last two latitudes equal.
 
 ## Arguments
 - `area_1d::Array{AbstractFloat}` - IN
@@ -1870,7 +2664,7 @@ Philip Cameron - Smith and John Tannahill, GMI project @ LLNL (2003).
 Implemented into GEOS - Chem by Claire Carouge (ccarouge@seas.harvard.edu).
 
 ## Remarks
-Subroutine from pjc_pfix. Call this one once everything is working fine.
+function from pjc_pfix. Call this one once everything is working fine.
 
 ## Revision History
 05 Dec 2008 - C. Carouge  - Replaced TPCORE routines by S - J Lin and Kevin Yeh with the TPCORE routines from GMI model. This eliminates the polar overshoot in the stratosphere. See https://github.com/geoschem/geos - chem for complete history.
