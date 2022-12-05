@@ -22,8 +22,8 @@ This involves, initial translation, and documentation. 100% match in functionali
   - [ ] `xadv_dao2!`
   - [ ] `yadv_dao2!`
   - [ ] `do_yadv_pole_i2d2!`
-  - [ ] `do_yadv_pole_sum!`
-  - [] `xtp!`
+  - [x] `do_yadv_pole_sum!`
+  - [x] `xtp!`
   - [x] `xmist!`
   - [x] `fxppm!`
   - [x] `lmtppm!`
