@@ -1983,12 +1983,12 @@ end
 Sets the cross term due to N-S advection at the Poles.
 
 ## Arguments
-- `ady::Matrix{AbstractFloat}` - INOUT
-- `i1_gl::Integer` - IN
-- `i2_gl::Integer` - IN
-- `ju1_gl::Integer` - IN
-- `j2_gl::Integer` - IN
-- `j1p::Integer` - IN
+- `ady::Matrix{AbstractFloat}` - INOUT - (ilo:ihi, julo:jhi) - Cross term due to N-S advection (mixing ratio)
+- `i1_gl::Integer` - IN - Global min longitude index
+- `i2_gl::Integer` - IN - Global max longitude index
+- `ju1_gl::Integer` - IN - Global min latitude index
+- `j2_gl::Integer` - IN - Global max latitude index
+- `j1p::Integer` - IN - Global latitude index at the edge of the South polar cap; j1p=ju1_gl+1; for a polar cap of 1 latitude band
 - `ilo::Integer` - IN - Local min longitude index
 - `ihi::Integer` - IN - Local max longitude index
 - `julo::Integer` - IN - Local min latitude index
@@ -2067,20 +2067,20 @@ end
 Does horizontal advection in the E-W direction.
 
 ## Arguments
-- `ilmt::Integer` - IN
-- `jn::Integer` - IN
-- `js::Integer` - IN
-- `pu::Matrix{AbstractFloat}` - IN
-- `crx::Matrix{AbstractFloat}` - IN
-- `dq1::Matrix{AbstractFloat}` - INOUT
-- `qqv::Matrix{AbstractFloat}` - INOUT
-- `xmass::Matrix{AbstractFloat}` - IN
-- `fx::Matrix{AbstractFloat}` - OUT
-- `j1p::Integer` - IN
-- `j2p::Integer` - IN
-- `i2_gl::Integer` - IN
-- `ju1_gl::Integer` - IN
-- `j2_gl::Integer` - IN
+- `ilmt::Integer` - IN - Controls various options in E-W advection
+- `jn::Integer` - IN - Northward of latitude index = jn, Courant numbers could be > 1, so use the flux-form semi-Lagrangian scheme
+- `js::Integer` - IN - Southward of latitude index = js, Courant numbers could be > 1, so use the flux-form semi-Lagrangian scheme
+- `pu::Matrix{AbstractFloat}` - IN - (ilo:ihi, julo:jhi) - pressure at edges in "u" [hPa]
+- `crx::Matrix{AbstractFloat}` - IN - (ilo:ihi, julo:jhi) - Courant number in E-W direction
+- `dq1::Matrix{AbstractFloat}` - INOUT - (ilo:ihi, julo:jhi) - Species density [hPa]
+- `qqv::Matrix{AbstractFloat}` - INOUT - (ilo:ihi, julo:jhi) - Concentration contribution from N-S advection [mixing ratio]
+- `xmass::Matrix{AbstractFloat}` - IN - (ilo:ihi, julo:jhi) - Horizontal mass flux in E-W direction [hPa]
+- `fx::Matrix{AbstractFloat}` - OUT - (ilo:ihi, julo:jhi) - E-W flux [mixing ratio]
+- `j1p::Integer` - IN - Global latitude indices at the edges of the S/N polar caps; j1p=ju1_gl+1; j2p=j2_gl-1 for a polar cap of 1 latitude band
+- `j2p::Integer` - IN - Global latitude indices at the edges of the S/N polar caps; j1p=ju1_gl+2; j2p=j2_gl-2 for a polar cap of 2 latitude band
+- `i2_gl::Integer` - IN - Global max longitude index
+- `ju1_gl::Integer` - IN - Global min latitude index
+- `j2_gl::Integer` - IN - Global max latitude index
 - `ilo::Integer` - IN - Local min longitude index
 - `ihi::Integer` - IN - Local max longitude index
 - `julo::Integer` - IN - Local min latitude index
@@ -2089,7 +2089,7 @@ Does horizontal advection in the E-W direction.
 - `i2::Integer` - IN - Local max longitude index
 - `ju1::Integer` - IN - Local min latitude index
 - `j2::Integer` - IN - Local max latitude index
-- `iord::Integer` - IN
+- `iord::Integer` - IN - Option for E-W transport scheme.  See module header for more info.
 
 ## Author
 Original code from Shian-Jiann Lin, DAO.
@@ -2243,13 +2243,13 @@ end
 Computes the linear tracer slope in the E-W direction. It uses the Lin et. al. 1994 algorithm.
 
 ## Arguments
-- `dcx::Matrix{AbstractFloat}` - 
-- `qqv::Matrix{AbstractFloat}` - 
-- `j1p::Integer` - 
-- `j2p::Integer` - 
-- `i2_gl::Integer` - 
-- `ju1_gl::Integer` - 
-- `j2_gl::Integer` - 
+- `dcx::Matrix{AbstractFloat}` - (-i2/3:i2+i2/3, julo:jhi) - Slope of concentration distribution in E-W direction [mixing ratio]
+- `qqv::Matrix{AbstractFloat}` - (-i2/3:i2+i2/3, julo:jhi) - Concentration contribution from N-S advection [mixing ratio]
+- `j1p::Integer` - Global latitude indices at the edges of the S/N polar caps; j1p=ju1_gl+1; j2p=j2_gl-1 for a polar cap of 1 latitude band
+- `j2p::Integer` - Global latitude indices at the edges of the S/N polar caps; j1p=ju1_gl+2; j2p=j2_gl-2 for a polar cap of 2 latitude band
+- `i2_gl::Integer` - Global max longitude index
+- `ju1_gl::Integer` - Global min latitude index
+- `j2_gl::Integer` - Global max latitude index
 - `ilo::Integer` - IN - Local min longitude index
 - `ihi::Integer` - IN - Local max longitude index
 - `julo::Integer` - IN - Local min latitude index
@@ -2311,12 +2311,12 @@ end
 The 1D "outer" flux form operator based on the Piecewise Parabolic Method (PPM; see also Lin and Rood 1996) for computing the fluxes in the E-W direction.
 
 ## Arguments
-- `ij::Integer` - IN
-- `ilmt::Integer` - IN
-- `crx::Matrix{AbstractFloat}` - IN
-- `dcx::Matrix{AbstractFloat}` - OUT
-- `fx::Matrix{AbstractFloat}` - OUT
-- `qqv::Matrix{AbstractFloat}` - INOUT
+- `ij::Integer` - IN - Latitude index
+- `ilmt::Integer` - IN - Controls various options in E-W advection
+- `crx::Matrix{AbstractFloat}` - IN - (i1:i2, julo:jhi)
+- `dcx::Matrix{AbstractFloat}` - OUT - (ilo:ihi, julo:jhi)
+- `fx::Matrix{AbstractFloat}` - OUT - (i1:i2, julo:jhi)
+- `qqv::Matrix{AbstractFloat}` - INOUT - (ilo:ihi, julo:jhi)
 - `ilo::Integer` - IN - Local min longitude index
 - `ihi::Integer` - IN - Local max longitude index
 - `julo::Integer` - IN - Local min latitude index
