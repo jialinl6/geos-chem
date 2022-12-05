@@ -61,14 +61,10 @@ delp(km) |  q(i, j, km)
 module tpcore_fvdas_mod
 
 """
-Subroutine Init_Tpcore allocates and initializes all module
-!  variables,
+Subroutine Init_Tpcore allocates and initializes all module variables,
 
 ## Revision History
-05 Dec 2008 - C. Carouge - Replaced TPCORE routines by S-J Lin and Kevin
-!                               Yeh with the TPCORE routines from GMI model.
-!                               This eliminates the polar overshoot in the
-!                               stratosphere. See https://github.com/geoschem/geos-chem for complete history.
+05 Dec 2008 - C. Carouge - Replaced TPCORE routines by S-J Lin and Kevin Yeh with the TPCORE routines from GMI model. This eliminates the polar overshoot in the stratosphere. See https://github.com/geoschem/geos-chem for complete history.
 """
 function init_tpcore!(
 	im,
@@ -105,14 +101,13 @@ function init_tpcore!(
 	# INTEGER,        INTENT(OUT) :: JLAST      ! Local last  index for N-S axis
 	# INTEGER,        INTENT(OUT) :: RC         ! Success or failure
 
-	
 	elat = zeros(AbstractFloat, jm + 1) # cell edge latitude in radian
 	sine = zeros(AbstractFloat, jm + 1)
 	sine_25 = zeros(AbstractFloat, jm + 1)
 
 	# Initialize
-	rc      = gc_success
-	errmsg  = ""
+	rc = gc_success
+	errmsg = ""
 	thisloc = " -> at Init_Tpcore (in module GeosCore/tpcore_fvas_mod.F90)"
 
 	# NOTE: since we are not using MPI parallelization, we can set JFIRST and JLAST to the global grid limits in latitude. (bmy, 12/3/08)
@@ -153,8 +148,7 @@ function init_tpcore!(
 
 	# Define quantities
 	
-	# TODO: `dble` figure out what it does
-	dlon = 2. * pi / dble( im )
+	dlon = 2. * pi / im
 
 	# S. Pole
 	elat[1] = -0.5 * π
@@ -197,52 +191,50 @@ function init_tpcore!(
 	println(repeat("=", 79))
 end
 
+tpcore_fvdas_first = true
+tpcore_fvdas_ilmt = missing::Union{Missing, Integer}
+tpcore_fvdas_jlmt = missing::Union{Missing, Integer}
+tpcore_fvdas_klmt = missing::Union{Missing, Integer}
+
 """
-function Tpcore_FvDas takes horizontal winds on sigma
-	!  (or hybrid sigma-p) surfaces and calculates mass fluxes, and then updates
-	!   the 3D mixing ratio fields one time step (tdt).  The basic scheme is a
-	!   Multi-Dimensional Flux Form Semi-Lagrangian (FFSL) based on the van Leer
-	!   or PPM (see Lin and Rood, 1995).
+Takes horizontal winds on sigma (or hybrid sigma-p) surfaces and calculates mass fluxes, and then updates the 3D mixing ratio fields one time step (tdt).  The basic scheme is a Multi-Dimensional Flux Form Semi-Lagrangian (FFSL) based on the van Leer or PPM (see Lin and Rood, 1995).
 	
 ## Author
 Original code from Shian-Jiann Lin, DAO).
 John Tannahill, LLNL (jrt@llnl.gov).
-!
+
 ## Revision History
-05 Dec 2008 - C. Carouge - Replaced TPCORE routines by S-J Lin and Kevin
-!                              Yeh with the TPCORE routines from GMI model.
-!                              This eliminates the polar overshoot in the
-!                              stratosphere. See https://github.com/geoschem/geos-chem for complete history.
+05 Dec 2008 - C. Carouge - Replaced TPCORE routines by S-J Lin and Kevin Yeh with the TPCORE routines from GMI model. This eliminates the polar overshoot in the stratosphere. See https://github.com/geoschem/geos-chem for complete history.
 """
-function tpcore_fvdas(
-	dt,
-	ae,
-	im,
-	jm,
-	km,
-	jfirst,
-	jlast,
-	ng,
-	mg,
-	nq,
-	ak,
-	bk,
-	u,
-	v,
-	ps1,
-	ps2,
-	ps,
-	iord,
-	jord,
-	kord,
-	n_adj,
-	xmass,
-	ymass,
-	fill,
-	area_m2,
-	state_chm,
-	state_diag
-)
+function tpcore_fvdas!(
+	dt::AbstractFloat,
+	ae::AbstractFloat,
+	im::Integer,
+	jm::Integer,
+	km::Integer,
+	jfirst::Integer,
+	jlast::Integer,
+	ng::Integer,
+	mg::Integer,
+	nq::Integer,
+	ak::Array{AbstractFloat},
+	bk::Array{AbstractFloat},
+	u::Array{AbstractFloat, 3},
+	v::Array{AbstractFloat, 3},
+	ps1::Matrix{AbstractFloat},
+	ps2::Matrix{AbstractFloat},
+	ps::Matrix{AbstractFloat},
+	iord::Integer,
+	jord::Integer,
+	kord::Integer,
+	n_adj::Integer,
+	xmass::Array{AbstractFloat, 3},
+	ymass::Array{AbstractFloat, 3},
+	fill::Bool,
+	area_m2::Array{AbstractFloat},
+	state_chm::ChmState,
+	state_diag::DgnState
+)::Nothing
 	# !
 	# ! !USES:
 	# !
@@ -331,64 +323,42 @@ function tpcore_fvdas(
 
 	# !
 	# ! !DEFINED PARAMETERS:
-	# !
-	# 	INTEGER, PARAMETER :: ADVEC_CONSRV_OPT = 2          ! 2=floating pressure
-	# 	LOGICAL, PARAMETER :: CROSS = .true.
-	# !
-	# ! !LOCAL VARIABLES:
-	# !
-	# 	INTEGER            :: rj2m1
-	# 	INTEGER            :: j1p, j2p
-	# 	INTEGER            :: jn (km)
-	# 	INTEGER            :: js (km)
-	# 	INTEGER            :: il, ij, ik, iq, k, j, i, Kflip
-	# 	INTEGER            :: num, k2m1, S
-	# 	INTEGER            :: north, south
+	
+	advec_consrv_opt = 2 # 2 = floating pressure
+	cross = true
+	
+	jn = zeros(Integer, km)
+	js = zeros(Integer, km)
+	
+	dap = zeros(AbstractFloat, km)
+	dbk = zeros(AbstractFloat, km)
+	
+	cx = zeros(AbstractFloat, im, (jfirst - ng):(jlast + ng), km) # E-W CFL # on C-grid
+	cy = zeros(AbstractFloat, im, jfirst:(jlast + mg), km) # N-S CFL # on C-grid
+	delp1 = zeros(AbstractFloat, im, jm, km)
+	delp2 = zeros(AbstractFloat, im, jm, km)
+	delpm = zeros(AbstractFloat, im, jm, km)
+	pu = zeros(AbstractFloat, im, jm, km)
+	dpi = zeros(AbstractFloat, im, jm, km)
+	geofac = zeros(AbstractFloat, jm) # geometrical factor for meridional advection; geofac uses correct spherical geometry, and replaces RGW_25. (ccc, 4/1/09)
+	
+	dps_ctm = zeros(AbstractFloat, im,jm)
+	ua = zeros(AbstractFloat, im, jm, km)
+	va = zeros(AbstractFloat, im, jm, km)
+	wz = zeros(AbstractFloat, im, jm, km)
+	dq1 = zeros(AbstractFloat, im, (jfirst - ng):(jlast + ng), km)
 
-	# 	REAL(fp)           :: dap   (km)
-	# 	REAL(fp)           :: dbk   (km)
-	# 	REAL(fp)           :: cx(im,jfirst-ng:jlast+ng,km)  ! E-W CFL # on C-grid
-	# 	REAL(fp)           :: cy(im,jfirst:jlast+mg,km)     ! N-S CFL # on C-grid
-	# 	REAL(fp)           :: delp1(im, jm, km)
-	# 	REAL(fp)           :: delp2(im, jm, km)
-	# 	REAL(fp)           :: delpm(im, jm, km)
-	# 	REAL(fp)           :: pu   (im, jm, km)
-	# 	REAL(fp)           :: dpi(im, jm, km)
-	# 	REAL(fp)           :: geofac  (jm)     ! geometrical factor for meridional
-	# 																				! advection; geofac uses correct
-	# 																				! spherical geometry, and replaces
-	# 																				! RGW_25. (ccc, 4/1/09)
-	# 	REAL(fp)           :: geofac_pc        ! geometrical gactor for poles.
-	# 	REAL(fp)           :: dp
-	# 	REAL(fp)           :: dps_ctm(im,jm)
-	# 	REAL(fp)           :: ua (im, jm, km)
-	# 	REAL(fp)           :: va (im, jm, km)
-	# 	REAL(fp)           :: wz(im, jm, km)
-	# 	REAL(fp)           :: dq1(im,jfirst-ng:jlast+ng,km)
+	# qqu, qqv, adx and ady are now 2d arrays for parallelization purposes. (ccc, 4/1/08)
+	qqu = zeros(AbstractFloat, im, jm)
+	qqv = zeros(AbstractFloat, im, jm)
+	adx = zeros(AbstractFloat, im, jm)
+	ady = zeros(AbstractFloat, im, jm)
 
-	# 	! qqu, qqv, adx and ady are now 2d arrays for parallelization purposes.
-	# 	!(ccc, 4/1/08)
-	# 	REAL(fp)           :: qqu(im, jm)
-	# 	REAL(fp)           :: qqv(im, jm)
-	# 	REAL(fp)           :: adx(im, jm)
-	# 	REAL(fp)           :: ady(im, jm)
+	# fx, fy, fz and qtp are now 4D arrays for parallelization purposes. (ccc, 4/1/09)
+	fx = zeros(AbstractFloat, im, jm, km, nq)
+	fy = zeros(AbstractFloat, im, jm + 1, km, nq) # one more for edges
+	fz = zeros(AbstractFloat, im, jm, km, nq)
 
-	# 	! fx, fy, fz and qtp are now 4D arrays for parallelization purposes.
-	# 	! (ccc, 4/1/09)
-	# 	REAL(fp)           :: fx    (im, jm,   km, nq)
-	# 	REAL(fp)           :: fy    (im, jm+1, km, nq)    ! one more for edges
-	# 	REAL(fp)           :: fz    (im, jm,   km, nq)
-
-	# 	LOGICAL, SAVE      :: first = .true.
-
-	# 	# ----------------------------------------------------
-	# 	# ilmt : controls various options in E-W     advection
-	# 	# jlmt : controls various options in N-S     advection
-	# 	# klmt : controls various options in vertcal advection
-	# 	# ----------------------------------------------------
-
-	# 	INTEGER, SAVE      :: ilmt, jlmt, klmt
-	# 	INTEGER            :: js2g0, jn2g0
 
 	# 	# Add pointer to avoid array temporary in call to FZPPM (bmy, 6/5/13)
 	# 	REAL(fp),  POINTER :: q_ptr(:,:,:)
@@ -408,8 +378,10 @@ function tpcore_fvdas(
 	#endif
 
 	# Average surf. pressures in the polar cap. (ccc, 11/20/08)
-	# call average_press_poles!(area_m2, ps1, 1, im, 1, jm, 1, im, 1, jm)
-	# call average_press_poles!(area_m2, ps2, 1, im, 1, jm, 1, im, 1, jm)
+	# TODO:
+	average_press_poles!(area_m2, ps1, 1, im, 1, jm, 1, im, 1, jm)
+	# TODO:
+	average_press_poles!(area_m2, ps2, 1, im, 1, jm, 1, im, 1, jm)
 	
 	# Calculation of some geographic factors. (ccc, 11/20/08)
 	rj2m1 = jm - 1
@@ -421,9 +393,10 @@ function tpcore_fvdas(
 
 	geofac_pc = dp / (2.0 * (sum(area_m2[1:2]) / (sum(area_m2) * im)) * im)
 
-	if first
-		first = false
-		# call set_lmts!(ilmt, jlmt, klmt, im, jm, iord, jord, kord)
+	if tpcore_fvdas_first
+		tpcore_fvdas_first = false
+		# TODO:
+		set_lmts!(tpcore_fvdas_ilmt, tpcore_fvdas_jlmt, tpcore_fvdas_klmt, im, jm, iord, jord, kord)
 	end
 
 	# Pressure calculations. (ccc, 11/20/08)
@@ -437,7 +410,8 @@ function tpcore_fvdas(
 	# !$OMP DEFAULT( SHARED  ) &
 	# !$OMP PRIVATE( IK, IQ, q_ptr )
 	for ik = 1:km
-		# call set_press_terms!(dap[ik], dbk[ik], ps1, ps2, delp1[:, :, ik], delpm[:, :, ik], pu[:, :, ik], 1, jm, 1, im, 1, jm, j1p, j2p, 1, im, 1, jm)
+		# TODO:
+		set_press_terms!(dap[ik], dbk[ik], ps1, ps2, delp1[:, :, ik], delpm[:, :, ik], pu[:, :, ik], 1, jm, 1, im, 1, jm, j1p, j2p, 1, im, 1, jm)
 				
 		# ...intent(in)  dap - difference in ai across layer (mb)
 		# ...intent(in)  dbk - difference in bi across layer (mb)
@@ -454,29 +428,34 @@ function tpcore_fvdas(
 				# TODO: Translate % to Julia
 				# q_ptr => State_Chm%Species(iq)%Conc(:,:,km:1:-1)
 				
-				# call average_const_poles!(dap[ik], dbk[ik], area_m2, ps1, q_ptr[:, :, ik], 1, jm, im, 1, im, 1, jm, 1, im, 1, jm)
+				average_const_poles!(dap[ik], dbk[ik], area_m2, ps1, q_ptr[:, :, ik], 1, jm, im, 1, im, 1, jm, 1, im, 1, jm)
 				
 				# TODO: translate to Julia
 				# q_ptr => NULL()
 			end
 		end
 		
-		# call calc_courant!(cose, delpm[:, :, ik], pu[:, :, ik], xmass[:, :, ik], ymass[:, :, ik], cx[:, :, ik], cy[:, :, ik], j1p, j2p, 1, jm, 1, im, 1, jm, 1, im, 1, jm)
+		# TODO:
+		calc_courant!(cose, delpm[:, :, ik], pu[:, :, ik], xmass[:, :, ik], ymass[:, :, ik], cx[:, :, ik], cy[:, :, ik], j1p, j2p, 1, jm, 1, im, 1, jm, 1, im, 1, jm)
 
-		# call calc_divergence!(true, geofac_pc, geofac, dpi[:, :, ik], xmass[:, :, ik], ymass[:, :, ik], j1p, j2p, 1, im, 1, jm, 1, im, 1, jm, 1, im, 1, jm)
-				
-		# call set_cross_terms!(cx[:, :, ik], cy[:, :, ik], ua[:, :, ik], va[:, :, ik], j1p, j2p, 1, im, 1, jm, 1, im, 1, jm, 1, im, 1, jm, cross)
+		# TODO:
+		calc_divergence!(true, geofac_pc, geofac, dpi[:, :, ik], xmass[:, :, ik], ymass[:, :, ik], j1p, j2p, 1, im, 1, jm, 1, im, 1, jm, 1, im, 1, jm)
+		
+		# TODO:
+		set_cross_terms!(cx[:, :, ik], cy[:, :, ik], ua[:, :, ik], va[:, :, ik], j1p, j2p, 1, im, 1, jm, 1, im, 1, jm, 1, im, 1, jm, cross)
 	end
 
 	dps_ctm[:, :] .= sum(dpi[:, :, :])
 
-	# call calc_vert_mass_flux!(dbk, dps_ctm, dpi, wz, 1, im, 1, jm, 1, km)
+	# TODO:
+	calc_vert_mass_flux!(dbk, dps_ctm, dpi, wz, 1, im, 1, jm, 1, km)
 
 	# .sds2.. have all mass flux here: east-west(xmass),
 	#         north-south(ymass), vertical(wz)
 	# .sds2.. save omega (vertical flux) as diagnostic
 	
-	# call set_jn_js(jn, js, cx, 1, im, 1, jm, 1, jm, j1p, j2p, 1, im, 1, jm, 1, km)
+	# TODO:
+	set_jn_js!(jn, js, cx, 1, im, 1, jm, 1, jm, j1p, j2p, 1, im, 1, jm, 1, km)
 	
 	if advec_consrv_opt == 0
 		# NOTE: Translate parallel for below to parallel loop in Julia
@@ -528,7 +507,8 @@ function tpcore_fvdas(
 			# .sds.. convert to "mass"
 			dq1[:, :, ik] .= q_ptr[:, :, ik] * delp1[:, :, ik]
 
-			# call calc_advec_cross_terms!(north, south, q_ptr[:, :, ik], qqu, qqv, ua[:, :, ik], va[:, :, ik], j1p, j2p, im, 1, jm, 1, im, 1, jm, 1, im, 1, jm, cross)
+			# TODO:
+			calc_advec_cross_terms!(north, south, q_ptr[:, :, ik], qqu, qqv, ua[:, :, ik], va[:, :, ik], j1p, j2p, im, 1, jm, 1, im, 1, jm, 1, im, 1, jm, cross)
 			
 			# .sds.. notes on arrays
 			#   q   (in)  - species mixing ratio
@@ -541,7 +521,8 @@ function tpcore_fvdas(
 
 			# Add advective form E-W operator for E-W cross terms.
 
-			# call xadv_dao2!(2, north, south, adx, qqv, ua[:, :, ik], 1, im, 1, jm, 1, jm, j1p, j2p, 1, im, 1, jm)
+			# TODO:
+			xadv_dao2!(2, north, south, adx, qqv, ua[:, :, ik], 1, im, 1, jm, 1, jm, j1p, j2p, 1, im, 1, jm)
 
 			# .sds notes on output arrays
 			#   adx (out)- cross term due to E-W advection (mixing ratio)
@@ -552,7 +533,8 @@ function tpcore_fvdas(
 
 			# Add advective form N-S operator for N-S cross terms.
 
-			# call Yadv_Dao2(2, ady, qqu, va[:, :, ik], 1, im, 1, jm, j1p, j2p, 1, im, 1, jm, 1, im, 1, jm)
+			# TODO:
+			yadv_dao2(2, ady, qqu, va[:, :, ik], 1, im, 1, jm, j1p, j2p, 1, im, 1, jm, 1, im, 1, jm)
 
 			# .sds notes on output arrays
 			#   ady (out)- cross term due to N-S advection (mixing ratio)
@@ -570,7 +552,8 @@ function tpcore_fvdas(
 				
 			q_ptr[:, :, ik] = q_ptr[:, :, ik] + ady + adx
 
-			# call xtp(ilmt, north, south, pu[:, :, ik],  cx[:, :, ik], dq1[:, :, ik], qqv, xmass[:, :, ik], fx[:, :, ik, iq], j1p, j2p, im, 1, jm, 1, im, 1, jm, 1, im, 1, jm, iord)
+			# TODO:
+			xtp!(tpcore_fvdas_ilmt, north, south, pu[:, :, ik],  cx[:, :, ik], dq1[:, :, ik], qqv, xmass[:, :, ik], fx[:, :, ik, iq], j1p, j2p, im, 1, jm, 1, im, 1, jm, 1, im, 1, jm, iord)
 
 			# .sds notes on output arrays
 			#   pu  (in)    - pressure at edges in "u" (mb)
@@ -583,7 +566,8 @@ function tpcore_fvdas(
 			#   fx  (out)   - species E-W mass flux
 			# .sds
 			
-			# call ytp(jlmt, geofac_pc, geofac, cy[:, :, ik], dq1[:, :, ik], qqu, qqv, ymass[:, :, ik], fy[:, :, ik, iq], j1p, j2p, 1, im, 1, jm, im, 1, im, 1, jm, 1, im, 1, jm, jord)
+			# TODO:
+			ytp!(tpcore_fvdas_jlmt, geofac_pc, geofac, cy[:, :, ik], dq1[:, :, ik], qqu, qqv, ymass[:, :, ik], fy[:, :, ik, iq], j1p, j2p, 1, im, 1, jm, im, 1, im, 1, jm, 1, im, 1, jm, jord)
 
 			# .sds notes on output arrays
 			#   cy (in)     - Courant number in N-S direction
@@ -598,7 +582,8 @@ function tpcore_fvdas(
 			# .sds
 		end # ik
 		
-		# call fzppm(klmt, delp1, wz, dq1, q_ptr, fz[]:, :, :, iq], j1p, 1, jm, 1, im, 1, jm, im, km, 1, im, 1, jm, 1, km)
+		# TODO:
+		fzppm!(tpcore_fvdas_klmt, delp1, wz, dq1, q_ptr, fz[:, :, :, iq], j1p, 1, jm, 1, im, 1, jm, im, km, 1, im, 1, jm, 1, km)
 
 		# .sds notes on output arrays
 		#    wz  (in) : vertical mass flux
@@ -607,7 +592,8 @@ function tpcore_fvdas(
 		# .sds
 
 		if fill
-			# call qckxyz(dq1, j1p, j2p, 1, jm, 1, im, 1, jm, 1, im, 1, jm, 1, km)
+			# TODO:
+			qckxyz!(dq1, j1p, j2p, 1, jm, 1, im, 1, jm, 1, im, 1, jm, 1, km)
 		end
 
 		q_ptr[:, :, :] .= dq1 / delp2
@@ -742,14 +728,14 @@ Averages the species concentrations at the Poles when the Polar cap is enlarged.
 - `ju1_gl::Integer` - IN
 - `j2_gl::Integer` - IN
 - `i2_gl::Integer` - IN
-- `i1::Integer` - IN
-- `i2::Integer` - IN
-- `ju1::Integer` - IN
-- `j2::Integer` - IN
-- `ilo::Integer` - IN
-- `ihi::Integer` - IN
-- `julo::Integer` - IN
-- `jhi::Integer` - IN
+- `i1::Integer` - IN - Local min longitude index
+- `i2::Integer` - IN - Local max longitude index
+- `ju1::Integer` - IN - Local min latitude index
+- `j2::Integer` - IN - Local max latitude index
+- `ilo::Integer` - IN - Local min longitude index
+- `ihi::Integer` - IN - Local max longitude index
+- `julo::Integer` - IN - Local min latitude index
+- `jhi::Integer` - IN - Local max latitude index
 
 ## Author
 Original code from Shian-Jiann Lin, DAO).
@@ -808,7 +794,7 @@ function average_const_poles!(
 
 		meanq = sum1 / sum2
 
-		const1(:, (j2 - 1):j2) .= meanq
+		const1[:, (j2 - 1):j2] .= meanq
 	end
 end
 
@@ -826,14 +812,14 @@ Sets the cross terms for E-W horizontal advection.
 - `i2_gl::Integer` - IN
 - `ju1_gl::Integer` - IN
 - `j2_gl::Integer` - IN
-- `ilo::Integer` - IN
-- `ihi::Integer` - IN
-- `julo::Integer` - IN
-- `jhi::Integer` - IN
-- `i1::Integer` - IN
-- `i2::Integer` - IN
-- `ju1::Integer` - IN
-- `j2::Integer` - IN
+- `ilo::Integer` - IN - Local min longitude index
+- `ihi::Integer` - IN - Local max longitude index
+- `julo::Integer` - IN - Local min latitude index
+- `jhi::Integer` - IN - Local max latitude index
+- `i1::Integer` - IN - Local min longitude index
+- `i2::Integer` - IN - Local max longitude index
+- `ju1::Integer` - IN - Local min latitude index
+- `j2::Integer` - IN - Local max latitude index
 - `cross::Bool` - IN
 
 ## Author
@@ -879,7 +865,8 @@ function set_cross_terms!(
 			va[il, ij] = 0.5 * (cry[il, ij] + cry[il, ij + 1])
 		end
 		
-		# call do_cross_terms_pole_i2d2!(cry, va, i1_gl, i2_gl, ju1_gl, j2_gl, j1p, ilo, ihi, julo, jhi, i1, i2, ju1, j2)
+		# TODO:
+		do_cross_terms_pole_i2d2!(cry, va, i1_gl, i2_gl, ju1_gl, j2_gl, j1p, ilo, ihi, julo, jhi, i1, i2, ju1, j2)
 	end
 end
 
@@ -891,10 +878,10 @@ Calculates the vertical mass flux.
 - `dps_ctm::Matrix{AbstractFloat}` - IN
 - `dpi::Array{AbstractFloat, 3}` - IN
 - `wz::Array{AbstractFloat, 3}` - OUT
-- `i1::Integer` - IN
-- `i2::Integer` - IN
-- `ju1::Integer` - IN
-- `j2::Integer` - IN
+- `i1::Integer` - IN - Local min longitude index
+- `i2::Integer` - IN - Local max longitude index
+- `ju1::Integer` - IN - Local min latitude index
+- `j2::Integer` - IN - Local max latitude index
 - `k1::Integer` - IN
 - `k2::Integer` - IN
 
@@ -947,18 +934,18 @@ Determines Jn and Js, by looking where Courant number is > 1.
 - `jn::Array{AbstractFloat}` - OUT
 - `js::Array{AbstractFloat}` - OUT
 - `crx::Array{AbstractFloat, 3}` - IN
-- `ilo::Integer` - IN
-- `ihi::Integer` - IN
-- `julo::Integer` - IN
-- `jhi::Integer` - IN
+- `ilo::Integer` - IN - Local min longitude index
+- `ihi::Integer` - IN - Local max longitude index
+- `julo::Integer` - IN - Local min latitude index
+- `jhi::Integer` - IN - Local max latitude index
 - `ju1_gl::Integer` - IN
 - `j2_gl::Integer` - IN
 - `j1p::Integer` - IN
 - `j2p::Integer` - IN
-- `i1::Integer` - IN
-- `i2::Integer` - IN
-- `ju1::Integer` - IN
-- `j2::Integer` - IN
+- `i1::Integer` - IN - Local min longitude index
+- `i2::Integer` - IN - Local max longitude index
+- `ju1::Integer` - IN - Local min latitude index
+- `j2::Integer` - IN - Local max latitude index
 - `k1::Integer` - IN
 - `k2::Integer` - IN
 
@@ -997,7 +984,6 @@ function set_jn_js!(
 	jst = max(ju1, j1p)
 	jend = min(j2, js0)
 
-	@label ikloop1
 	for ik = k1:k2
 		js[ik] = j1p
 
@@ -1008,12 +994,12 @@ function set_jn_js!(
 				@goto ikloop1
 			end
 		end
+		@label ikloop1
 	end
 
 	jst = max(ju1, jn0)
 	jend = min(j2, j2p)
 
-	@label ikloop2
 	for ik = k1:k2
 		jn[ik] = j2p
 
@@ -1024,6 +1010,7 @@ function set_jn_js!(
 				@goto ikloop2
 			end
 		end
+		@label ikloop2
 	end
 end
 
@@ -1043,14 +1030,14 @@ Calculates the advective cross terms.
 - `i2_gl::Integer` - IN
 - `ju1_gl::Integer` - IN
 - `j2_gl::Integer` - IN
-- `ilo::Integer` - IN
-- `ihi::Integer` - IN
-- `julo::Integer` - IN
-- `jhi::Integer` - IN
-- `i1::Integer` - IN
-- `i2::Integer` - IN
-- `ju1::Integer` - IN
-- `j2::Integer` - IN
+- `ilo::Integer` - IN - Local min longitude index
+- `ihi::Integer` - IN - Local max longitude index
+- `julo::Integer` - IN - Local min latitude index
+- `jhi::Integer` - IN - Local max latitude index
+- `i1::Integer` - IN - Local min longitude index
+- `i2::Integer` - IN - Local max longitude index
+- `ju1::Integer` - IN - Local min latitude index
+- `j2::Integer` - IN - Local max latitude index
 - `cross::Bool` - IN
 
 ## Author
@@ -1146,7 +1133,6 @@ function calc_advec_cross_terms!(
 
 		for ij = ju1:j2, il = i1:i2
 			qqu[il, ij] = qtmp[il, ij] + (0.5 * qqu[il, ij])
-
 			qqv[il, ij] = qtmp[il, ij] + (0.5 * qqv[il, ij])
 		end
 	end
@@ -1161,14 +1147,14 @@ Checks for "filling".
 - `j2p::Integer` - IN
 - `ju1_gl::Integer` - IN
 - `j2_gl::Integer` - IN
-- `ilo::Integer` - IN
-- `ihi::Integer` - IN
-- `julo::Integer` - IN
-- `jhi::Integer` - IN
-- `i1::Integer` - IN
-- `i2::Integer` - IN
-- `ju1::Integer` - IN
-- `j2::Integer` - IN
+- `ilo::Integer` - IN - Local min longitude index
+- `ihi::Integer` - IN - Local max longitude index
+- `julo::Integer` - IN - Local min latitude index
+- `jhi::Integer` - IN - Local max latitude index
+- `i1::Integer` - IN - Local min longitude index
+- `i2::Integer` - IN - Local max longitude index
+- `ju1::Integer` - IN - Local min latitude index
+- `j2::Integer` - IN - Local max latitude index
 - `k1::Integer` - IN
 - `k2::Integer` - IN
 
@@ -1400,14 +1386,14 @@ Calculates courant numbers from the horizontal mass fluxes.
 - `j2p::Integer` - IN
 - `ju1_gl::Integer` - IN
 - `j2_gl::Integer` - IN
-- `ilo::Integer` - IN
-- `ihi::Integer` - IN
-- `julo::Integer` - IN
-- `jhi::Integer` - IN
-- `i1::Integer` - IN
-- `i2::Integer` - IN
-- `ju1::Integer` - IN
-- `j2::Integer` - IN
+- `ilo::Integer` - IN - Local min longitude index
+- `ihi::Integer` - IN - Local max longitude index
+- `julo::Integer` - IN - Local min latitude index
+- `jhi::Integer` - IN - Local max latitude index
+- `i1::Integer` - IN - Local min longitude index
+- `i2::Integer` - IN - Local max longitude index
+- `ju1::Integer` - IN - Local min latitude index
+- `j2::Integer` - IN - Local max latitude index
 
 ## Author
 Original code from Shian-Jiann Lin, DAO).
@@ -1467,14 +1453,14 @@ Calculates the divergence.
 - `i2_gl::Integer` - IN
 - `ju1_gl::Integer` - IN
 - `j2_gl::Integer` - IN
-- `ilo::Integer` - IN
-- `ihi::Integer` - IN
-- `julo::Integer` - IN
-- `jhi::Integer` - IN
-- `i1::Integer` - IN
-- `i2::Integer` - IN
-- `ju1::Integer` - IN
-- `j2::Integer` - IN
+- `ilo::Integer` - IN - Local min longitude index
+- `ihi::Integer` - IN - Local max longitude index
+- `julo::Integer` - IN - Local min latitude index
+- `jhi::Integer` - IN - Local max latitude index
+- `i1::Integer` - IN - Local min longitude index
+- `i2::Integer` - IN - Local max longitude index
+- `ju1::Integer` - IN - Local min latitude index
+- `j2::Integer` - IN - Local max latitude index
 
 ## Author
 Original code from Shian-Jiann Lin, DAO.
@@ -1519,7 +1505,8 @@ function calc_divergence!(
 		dpi[i2, ij] = dpi[i2, ij] + xmass[i2, ij] - xmass[1, ij]
 	end
 
-	# call Do_Divergence_Pole_Sum(do_reduction, geofac_pc, dpi, ymass, i1_gl, i2_gl, j1p, j2p, ju1_gl, j2_gl, ilo, ihi, julo, jhi, i1, i2, ju1, j2)
+	# TODO:
+	do_divergence_pole_sum!(do_reduction, geofac_pc, dpi, ymass, i1_gl, i2_gl, j1p, j2p, ju1_gl, j2_gl, ilo, ihi, julo, jhi, i1, i2, ju1, j2)
 	
 	if j1p != ju1_gl + 1
 		# Polar cap enlarged:  copy dpi to polar ring.
@@ -1543,14 +1530,14 @@ Sets the divergence at the Poles.
 - `j2p::Integer` - IN
 - `ju1_gl::Integer` - IN
 - `j2_gl::Integer` - IN
-- `ilo::Integer` - IN
-- `ihi::Integer` - IN
-- `julo::Integer` - IN
-- `jhi::Integer` - IN
-- `i1::Integer` - IN
-- `i2::Integer` - IN
-- `ju1::Integer` - IN
-- `j2::Integer` - IN
+- `ilo::Integer` - IN - Local min longitude index
+- `ihi::Integer` - IN - Local max longitude index
+- `julo::Integer` - IN - Local min latitude index
+- `jhi::Integer` - IN - Local max latitude index
+- `i1::Integer` - IN - Local min longitude index
+- `i2::Integer` - IN - Local max longitude index
+- `ju1::Integer` - IN - Local min latitude index
+- `j2::Integer` - IN - Local max latitude index
 	
 ## Author
 Original code from Shian-Jiann Lin, DAO.
@@ -1620,14 +1607,14 @@ Sets "va" at the Poles.
 - `ju1_gl::Integer` - IN
 - `j2_gl::Integer` - IN
 - `j1p::Integer` - IN
-- `ilo::Integer` - IN
-- `ihi::Integer` - IN
-- `julo::Integer` - IN
-- `jhi::Integer` - IN
-- `i1::Integer` - IN
-- `i2::Integer` - IN
-- `ju1::Integer` - IN
-- `j2::Integer` - IN
+- `ilo::Integer` - IN - Local min longitude index
+- `ihi::Integer` - IN - Local max longitude index
+- `julo::Integer` - IN - Local min latitude index
+- `jhi::Integer` - IN - Local max latitude index
+- `i1::Integer` - IN - Local min longitude index
+- `i2::Integer` - IN - Local max longitude index
+- `ju1::Integer` - IN - Local min latitude index
+- `j2::Integer` - IN - Local max latitude index
 
 ## Author
 Original code from Shian-Jiann Lin, DAO.
@@ -1684,18 +1671,18 @@ The advective form E-W operator for computing the adx (E-W) cross term.
 - `adx::Matrix{AbstractFloat}` - OUT
 - `qqv::Matrix{AbstractFloat}` - IN
 - `ua::Matrix{AbstractFloat}` - IN
-- `ilo::Integer` - IN
-- `ihi::Integer` - IN
-- `julo::Integer` - IN
-- `jhi::Integer` - IN
+- `ilo::Integer` - IN - Local min longitude index
+- `ihi::Integer` - IN - Local max longitude index
+- `julo::Integer` - IN - Local min latitude index
+- `jhi::Integer` - IN - Local max latitude index
 - `ju1_gl::Integer` - IN
 - `j2_gl::Integer` - IN
 - `j1p::Integer` - IN
 - `j2p::Integer` - IN
-- `i1::Integer` - IN
-- `i2::Integer` - IN
-- `ju1::Integer` - IN
-- `j2::Integer` - IN
+- `i1::Integer` - IN - Local min longitude index
+- `i2::Integer` - IN - Local max longitude index
+- `ju1::Integer` - IN - Local min latitude index
+- `j2::Integer` - IN - Local max latitude index
 
 ## Author
 Original code from Shian-Jiann Lin, DAO.
@@ -1845,14 +1832,14 @@ The advective form N-S operator for computing the ady (N-S) cross term.
 - `j2_gl::Integer` - IN
 - `j1p::Integer` - IN
 - `j2p::Integer` - IN
-- `ilo::Integer` - IN
-- `ihi::Integer` - IN
-- `julo::Integer` - IN
-- `jhi::Integer` - IN
-- `i1::Integer` - IN
-- `i2::Integer` - IN
-- `ju1::Integer` - IN
-- `j2::Integer` - IN
+- `ilo::Integer` - IN - Local min longitude index
+- `ihi::Integer` - IN - Local max longitude index
+- `julo::Integer` - IN - Local min latitude index
+- `jhi::Integer` - IN - Local max latitude index
+- `i1::Integer` - IN - Local min longitude index
+- `i2::Integer` - IN - Local max longitude index
+- `ju1::Integer` - IN - Local min latitude index
+- `j2::Integer` - IN - Local max latitude index
 
 ## Author
 Original code from Shian-Jiann Lin, DAO.
@@ -1893,7 +1880,8 @@ function yadv_dao2!(
 	end
 
 	# This routine creates a ghost zone in latitude in case of not enlarged polar cap (ccc, 11/20/08)
-	# call do_yadv_pole_i2d2(qqu, qquwk, i1_gl, i2_gl, ju1_gl, j2_gl, j1p, ilo, ihi, julo, jhi, i1, i2, ju1, j2)
+	# TODO:
+	do_yadv_pole_i2d2!(qqu, qquwk, i1_gl, i2_gl, ju1_gl, j2_gl, j1p, ilo, ihi, julo, jhi, i1, i2, ju1, j2)
 	
 	if iad == 1
 		# 1st order.
@@ -1922,7 +1910,8 @@ function yadv_dao2!(
 		end
 	end
 	
-	# call do_yadv_pole_sum( ady, i1_gl, i2_gl, ju1_gl, j2_gl, j1p, ilo, ihi, julo, jhi, i1, i2, ju1, j2)
+	# TODO:
+	do_yadv_pole_sum!( ady, i1_gl, i2_gl, ju1_gl, j2_gl, j1p, ilo, ihi, julo, jhi, i1, i2, ju1, j2)
 end
 
 """
@@ -1936,14 +1925,14 @@ Sets "qquwk" at the Poles.
 - `ju1_gl::Integer` - IN
 - `j2_gl::Integer` - IN
 - `j1p::Integer` - IN
-- `ilo::Integer` - IN
-- `ihi::Integer` - IN
-- `julo::Integer` - IN
-- `jhi::Integer` - IN
-- `i1::Integer` - IN
-- `i2::Integer` - IN
-- `ju1::Integer` - IN
-- `j2::Integer` - IN
+- `ilo::Integer` - IN - Local min longitude index
+- `ihi::Integer` - IN - Local max longitude index
+- `julo::Integer` - IN - Local min latitude index
+- `jhi::Integer` - IN - Local max latitude index
+- `i1::Integer` - IN - Local min longitude index
+- `i2::Integer` - IN - Local max longitude index
+- `ju1::Integer` - IN - Local min latitude index
+- `j2::Integer` - IN - Local max latitude index
 
 ## Author
 Original code from Shian-Jiann Lin, DAO.
@@ -2000,14 +1989,14 @@ Sets the cross term due to N-S advection at the Poles.
 - `ju1_gl::Integer` - IN
 - `j2_gl::Integer` - IN
 - `j1p::Integer` - IN
-- `ilo::Integer` - IN
-- `ihi::Integer` - IN
-- `julo::Integer` - IN
-- `jhi::Integer` - IN
-- `i1::Integer` - IN
-- `i2::Integer` - IN
-- `ju1::Integer` - IN
-- `j2::Integer` - IN
+- `ilo::Integer` - IN - Local min longitude index
+- `ihi::Integer` - IN - Local max longitude index
+- `julo::Integer` - IN - Local min latitude index
+- `jhi::Integer` - IN - Local max latitude index
+- `i1::Integer` - IN - Local min longitude index
+- `i2::Integer` - IN - Local max longitude index
+- `ju1::Integer` - IN - Local min latitude index
+- `j2::Integer` - IN - Local max latitude index
 
 ## Author
 Original code from Shian-Jiann Lin, DAO.
@@ -2092,14 +2081,14 @@ Does horizontal advection in the E-W direction.
 - `i2_gl::Integer` - IN
 - `ju1_gl::Integer` - IN
 - `j2_gl::Integer` - IN
-- `ilo::Integer` - IN
-- `ihi::Integer` - IN
-- `julo::Integer` - IN
-- `jhi::Integer` - IN
-- `i1::Integer` - IN
-- `i2::Integer` - IN
-- `ju1::Integer` - IN
-- `j2::Integer` - IN
+- `ilo::Integer` - IN - Local min longitude index
+- `ihi::Integer` - IN - Local max longitude index
+- `julo::Integer` - IN - Local min latitude index
+- `jhi::Integer` - IN - Local max latitude index
+- `i1::Integer` - IN - Local min longitude index
+- `i2::Integer` - IN - Local max longitude index
+- `ju1::Integer` - IN - Local min latitude index
+- `j2::Integer` - IN - Local max latitude index
 - `iord::Integer` - IN
 
 ## Author
@@ -2162,7 +2151,8 @@ function xtp!(
 		qtmp[i2 + 1, :] .= qqv[i1, :]
 		qtmp[i2 + 2, :] .= qqv[i1 + 1, :]
 		
-		# call Xmist(dcx, qtmp, j1p, j2p, i2_gl, ju1_gl, j2_gl, ilo, ihi, julo, jhi, i1, i2, ju1, j2)
+		# TODO:
+		xmist!(dcx, qtmp, j1p, j2p, i2_gl, ju1_gl, j2_gl, ilo, ihi, julo, jhi, i1, i2, ju1, j2)
 	end
 	
 	jvan = max(1, j2_gl / 18)
@@ -2186,8 +2176,9 @@ function xtp!(
 
 						fx[il, ij] = qtmp[iu, ij] + (dcx[iu, ij] * (sign(crx[il, ij]) - crx[il, ij]))
 					end
-				else	
-					# call Fxppm(ij, ilmt, crx, dcx, fx, qtmp, -i2/3, i2+i2/3, julo, jhi, i1, i2)
+				else
+					# TODO:
+					fxppm!(ij, ilmt, crx, dcx, fx, qtmp, -i2/3, i2+i2/3, julo, jhi, i1, i2)
 					# qtmp (inout) - can be updated
 				end
 			end
@@ -2251,6 +2242,23 @@ end
 """
 Computes the linear tracer slope in the E-W direction. It uses the Lin et. al. 1994 algorithm.
 
+## Arguments
+- `dcx::Matrix{AbstractFloat}` - 
+- `qqv::Matrix{AbstractFloat}` - 
+- `j1p::Integer` - 
+- `j2p::Integer` - 
+- `i2_gl::Integer` - 
+- `ju1_gl::Integer` - 
+- `j2_gl::Integer` - 
+- `ilo::Integer` - IN - Local min longitude index
+- `ihi::Integer` - IN - Local max longitude index
+- `julo::Integer` - IN - Local min latitude index
+- `jhi::Integer` - IN - Local max latitude index
+- `i1::Integer` - IN - Local min longitude index
+- `i2::Integer` - IN - Local max longitude index
+- `ju1::Integer` - IN - Local min latitude index
+- `j2::Integer` - IN - Local max latitude index
+
 ## Author
 Original code from Shian-Jiann Lin, DAO.
 John Tannahill, LLNL (jrt@llnl.gov).
@@ -2309,12 +2317,12 @@ The 1D "outer" flux form operator based on the Piecewise Parabolic Method (PPM; 
 - `dcx::Matrix{AbstractFloat}` - OUT
 - `fx::Matrix{AbstractFloat}` - OUT
 - `qqv::Matrix{AbstractFloat}` - INOUT
-- `ilo::Integer` - IN
-- `ihi::Integer` - IN
-- `julo::Integer` - IN
-- `jhi::Integer` - IN
-- `i1::Integer` - IN
-- `i2::Integer` - IN
+- `ilo::Integer` - IN - Local min longitude index
+- `ihi::Integer` - IN - Local max longitude index
+- `julo::Integer` - IN - Local min latitude index
+- `jhi::Integer` - IN - Local max latitude index
+- `i1::Integer` - IN - Local min longitude index
+- `i2::Integer` - IN - Local max longitude index
 
 ## Author
 Original code from Shian-Jiann Lin, DAO.
@@ -2383,7 +2391,8 @@ function fxppm!(
 			qqvi1[lenx] = qqv[il, ij]
 		end
 		
-		# call lmtppm(lenx, ilmt, a61, al1, ar1, dcxi1, qqvi1)
+		# TODO:
+		lmtppm!(lenx, ilmt, a61, al1, ar1, dcxi1, qqvi1)
 
 		lenx = 0
 		for il = (ilo + 1):(ihi - 1)
@@ -2420,8 +2429,8 @@ function fxppm!(
 
 	# First box case (ccc, 11/20/08)
 	if crx[i1, ij] > 0.0
-			ilm1 = i2
-			fx[i1, ij] = ar[ilm1] + 0.5 * crx[i1, ij] * (al[ilm1] - ar[ilm1] + (a6[ilm1] * (1.0 - (r23 * crx[i1, ij]))))
+		ilm1 = i2
+		fx[i1, ij] = ar[ilm1] + 0.5 * crx[i1, ij] * (al[ilm1] - ar[ilm1] + (a6[ilm1] * (1.0 - (r23 * crx[i1, ij]))))
 	else
 		fx[i1, ij] = al[i1] - 0.5 * crx[i1, ij] * (ar[i1] - al[i1] + (a6[i1] * (1.0 + (r23 * crx[i1, ij]))))
 	end
@@ -2431,13 +2440,16 @@ end
 Enforces the full monotonic, semi-monotonic, or the positive-definite constraint to the sub-grid parabolic distribution of the Piecewise Parabolic Method (PPM).
 
 ## Arguments
-- `lenx::Integer` - IN
+- `lenx::Integer` - IN - Vector length
 - `lmt::Integer` - IN
-- `a6::Array{AbstractFloat}` - INOUT
-- `al::Array{AbstractFloat}` - INOUT
-- `ar::Array{AbstractFloat}` - INOUT
-- `dc::Array{AbstractFloat}` - INOUT
-- `qa::Array{AbstractFloat}` - INOUT
+	- If 0 => full monotonicity;
+	- If 1 => semi-monotonic constraint (no undershoots);
+	- If 2 => positive-definite constraint
+- `a6::Array{AbstractFloat}` - (lenx) - INOUT - Curvature of the test parabola
+- `al::Array{AbstractFloat}` - (lenx) - INOUT - Left edge value of the test parabola
+- `ar::Array{AbstractFloat}` - (lenx) - INOUT - Right edge value of the test parabola
+- `dc::Array{AbstractFloat}` - (lenx) - INOUT - 0.5 * mismatch
+- `qa::Array{AbstractFloat}` - (lenx) - INOUT - Cell-averaged value
 
 ## Author
 Original code from Shian-Jiann Lin, DAO.
@@ -2459,6 +2471,7 @@ function lmtppm!(
 	
 	if lmt == 0
 		# Full constraint.
+		
 		for il = 1:lenx
 			if dc[il] == 0.0
 					a6[il] = 0.0
@@ -2480,6 +2493,7 @@ function lmtppm!(
 		end
 	elseif lmt == 1
 		# Semi-monotonic constraint.
+		
 		for il = 1:lenx
 			if abs(ar[il] - al[il]) < -a6[il]
 				if qa[il] < ar[il] && qa[il] < al[il]
@@ -2496,6 +2510,8 @@ function lmtppm!(
 			end
 		end
 	elseif lmt == 2
+		# positive-definite constraint
+		
 		for il = 1:lenx
 			if abs(ar[il] - al[il]) < -a6[il]
 
@@ -2525,31 +2541,31 @@ end
 Does horizontal advection in the N-S direction.
 
 ## Arguments
-- `jlmt::Integer` - IN
-- `geofac_pc::AbstractFloat` - IN
-- `geofac::Matrix{AbstractFloat}` - IN
-- `cry::Matrix{AbstractFloat}` - IN
-- `dq1::Matrix{AbstractFloat}` - INOUT
-- `qqu::Matrix{AbstractFloat}` - IN
-- `qqv::Matrix{AbstractFloat}` - INOUT
-- `ymass::Matrix{AbstractFloat}` - IN
-- `fy::Matrix{AbstractFloat}` - OUT
-- `j1p::Integer` - IN
-- `j2p::Integer` - IN
-- `i1_gl::Integer` - IN
-- `i2_gl::Integer` - IN
-- `ju1_gl::Integer` - IN
-- `j2_gl::Integer` - IN
-- `ilong::Integer` - IN
-- `ilo::Integer` - IN
-- `ihi::Integer` - IN
-- `julo::Integer` - IN
-- `jhi::Integer` - IN
-- `i1::Integer` - IN
-- `i2::Integer` - IN
-- `ju1::Integer` - IN
-- `j2::Integer` - IN
-- `jord::Integer` - IN
+- `jlmt::Integer` - IN - Controls various options in N-S advection
+- `geofac_pc::AbstractFloat` - IN - special geometrical factor (geofac) for Polar cap
+- `geofac::Matrix{AbstractFloat}` - IN - (ju1_gl:j2_gl) - geometrical factor for meridional advection; geofac uses correct spherical geometry, and replaces acosp as the  meridional geometrical factor in tpcore
+- `cry::Matrix{AbstractFloat}` - IN - (ilo:ihi, julo:jhi) - Courant number in N-S direction
+- `dq1::Matrix{AbstractFloat}` - INOUT - (ilo:ihi, julo:jhi) - Species density [hPa]
+- `qqu::Matrix{AbstractFloat}` - IN - (ilo:ihi, julo:jhi) - Concentration contribution from E-W advection [mixing ratio]
+- `qqv::Matrix{AbstractFloat}` - INOUT - (ilo:ihi, julo:jhi) - Concentration contribution from N-S advection [mixing ratio]
+- `ymass::Matrix{AbstractFloat}` - IN - (ilo:ihi, julo:jhi) - Horizontal mass flux in N-S direction [hPa]
+- `fy::Matrix{AbstractFloat}` - OUT - (ilo:ihi, julo:jhi+1) - N-S flux [mixing ratio]
+- `j1p::Integer` - IN - Global latitude indices at the edges of the S/N polar caps; j1p=ju1_gl+1; j2p=j2_gl-1 for a polar cap of 1 latitude band
+- `j2p::Integer` - IN - Global latitude indices at the edges of the S/N polar caps; j1p=ju1_gl+2; j2p=j2_gl-2 for a polar cap of 2 latitude band
+- `i1_gl::Integer` - IN - Global min longitude index
+- `i2_gl::Integer` - IN - Global max longitude index
+- `ju1_gl::Integer` - IN - Global min latitude index
+- `j2_gl::Integer` - IN - Global max latitude index
+- `ilong::Integer` - IN - ???
+- `ilo::Integer` - IN - Local min longitude index
+- `ihi::Integer` - IN - Local max longitude index
+- `julo::Integer` - IN - Local min latitude index
+- `jhi::Integer` - IN - Local max latitude index
+- `i1::Integer` - IN - Local min longitude index
+- `i2::Integer` - IN - Local max longitude index
+- `ju1::Integer` - IN - Local min latitude index
+- `j2::Integer` - IN - Local max latitude index
+- `jord::Integer` - IN - N-S transport scheme (see module header for more info)
 
 ## Author
 Original code from Shian-Jiann Lin, DAO.
@@ -2598,10 +2614,10 @@ function ytp!(
 		end
 	else
 			# TODO:
-			# call ymist(4, dcy, qqu, i1_gl, i2_gl, ju1_gl, j2_gl, j1p, ilo, ihi, julo, jhi, i1, i2, ju1, j2)
+			ymist!(4, dcy, qqu, i1_gl, i2_gl, ju1_gl, j2_gl, j1p, ilo, ihi, julo, jhi, i1, i2, ju1, j2)
 		if jord <= 0 || jord >= 3
 			# TODO:
-			# call fyppm(jlmt, cry, dcy, qqu, qqv, j1p, j2p, i1_gl, i2_gl, ju1_gl, j2_gl, ilong, ilo, ihi, julo, jhi, i1, i2, ju1, j2)
+			fyppm!(jlmt, cry, dcy, qqu, qqv, j1p, j2p, i1_gl, i2_gl, ju1_gl, j2_gl, ilong, ilo, ihi, julo, jhi, i1, i2, ju1, j2)
 		else
 			for ij = j1p:(j2p + 1), il = i1:i2
 				# c?
@@ -2626,29 +2642,29 @@ function ytp!(
 	end
 	
 	# TODO:
-	# call do_ytp_pole_sum(geofac_pc, dq1, qqv, fy, i1_gl, i2_gl, ju1_gl, j2_gl, j1p, j2p, ilo, ihi, julo, jhi, i1, i2, ju1, j2)
+	do_ytp_pole_sum!(geofac_pc, dq1, qqv, fy, i1_gl, i2_gl, ju1_gl, j2_gl, j1p, j2p, ilo, ihi, julo, jhi, i1, i2, ju1, j2)
 end
 
 """
 Computes the linear tracer slope in the N-S direction.  It uses the Lin et. al. 1994 algorithm.
 
 ## Arguments
-- `id::Integer` - IN
-- `dcy::Matrix{AbstractFloat}` - OUT
-- `qqu::Matrix{AbstractFloat}` - IN
-- `i1_gl::Integer` - IN
-- `i2_gl::Integer` - IN
-- `ju1_gl::Integer` - IN
-- `j2_gl::Integer` - IN
-- `j1p::Integer` - IN
-- `ilo::Integer` - IN
-- `ihi::Integer` - IN
-- `julo::Integer` - IN
-- `jhi::Integer` - IN
-- `i1::Integer` - IN
-- `i2::Integer` - IN
-- `ju1::Integer` - IN
-- `j2::Integer` - IN
+- `id::Integer` - IN - The "order" of the accuracy in the computed linear "slope" (or mismatch, Lin et al. 1994); it is either 2 or 4.
+- `dcy::Matrix{AbstractFloat}` - OUT - (ilo:ihi, julo:jhi) - Slope of concentration distribution in N-S direction [mixing ratio]
+- `qqu::Matrix{AbstractFloat}` - IN - (ilo:ihi, julo:jhi) - Concentration contribution from E-W advection (mixing ratio)
+- `i1_gl::Integer` - IN - Global min longitude index
+- `i2_gl::Integer` - IN - Global max longitude index
+- `ju1_gl::Integer` - IN - Global min latitude index
+- `j2_gl::Integer` - IN - Global max latitude index
+- `j1p::Integer` - IN - Global latitude index at the edge of the South polar cap; j1p=ju1_gl+1 for a polar cap of 1 latitude band
+- `ilo::Integer` - IN - Local min longitude index
+- `ihi::Integer` - IN - Local max longitude index
+- `julo::Integer` - IN - Local min latitude index
+- `jhi::Integer` - IN - Local max latitude index
+- `i1::Integer` - IN - Local min longitude index
+- `i2::Integer` - IN - Local max longitude index
+- `ju1::Integer` - IN - Local min latitude index
+- `j2::Integer` - IN - Local max latitude index
 
 ## Author
 Original code from Shian-Jiann Lin, DAO.
@@ -2698,7 +2714,7 @@ function ymist!(
 		end
 	else
 		# TODO:
-		# call do_ymist_pole1_i2d2(dcy, qtmp, i1_gl, i2_gl, ju1_gl, j2_gl, ilo, ihi, julo, jhi, i1, i2, ju1, j2)
+		do_ymist_pole1_i2d2!(dcy, qtmp, i1_gl, i2_gl, ju1_gl, j2_gl, ilo, ihi, julo, jhi, i1, i2, ju1, j2)
 
 		for ij = (ju1 - 2):(j2 - 2), il = i1:i2
 			tmp = ((8.0 * (qtmp[il, ij + 3] - qtmp[il, ij + 1])) + qtmp[il, ij] - qtmp[il, ij + 4]) * r24
@@ -2710,28 +2726,29 @@ function ymist!(
 			dcy[il, ij + 2] = sign(tmp) * min(abs(tmp), pmin, pmax)
 		end
 	end
+	
 	# TODO:
-	# call do_ymist_pole2_i2d2(dcy, qtmp, i1_gl, i2_gl, ju1_gl, j2_gl, j1p, ilo, ihi, julo, jhi, i1, i2, ju1, j2)
+	do_ymist_pole2_i2d2!(dcy, qtmp, i1_gl, i2_gl, ju1_gl, j2_gl, j1p, ilo, ihi, julo, jhi, i1, i2, ju1, j2)
 end
 
 """
 Sets "dcy" at the Poles.
 
 ## Arguments
-- `dcy::Matrix{AbstractFloat}` - OUT
-- `qqu::Matrix{AbstractFloat}` - IN
-- `i1_gl::Integer` - IN
-- `i2_gl::Integer` - IN
-- `ju1_gl::Integer` - IN
-- `j2_gl::Integer` - IN
-- `ilo::Integer` - IN
-- `ihi::Integer` - IN
-- `julo::Integer` - IN
-- `jhi::Integer` - IN
-- `i1::Integer` - IN
-- `i2::Integer` - IN
-- `ju1::Integer` - IN
-- `j2::Integer` - IN
+- `dcy::Matrix{AbstractFloat}` - OUT - (ilo:ihi, julo:jhi) - Slope of concentration distribution in N-S direction [mixing ratio]
+- `qqu::Matrix{AbstractFloat}` - IN - (ilo:ihi, julo-2:jhi+2) - Concentration contribution from E-W advection [mixing ratio]
+- `i1_gl::Integer` - IN - Global min longitude index
+- `i2_gl::Integer` - IN - Global max longitude index
+- `ju1_gl::Integer` - IN - Global min latitude index
+- `j2_gl::Integer` - IN - Global max latitude index
+- `ilo::Integer` - IN - Local min longitude index
+- `ihi::Integer` - IN - Local max longitude index
+- `julo::Integer` - IN - Local min latitude index
+- `jhi::Integer` - IN - Local max latitude index
+- `i1::Integer` - IN - Local min longitude index
+- `i2::Integer` - IN - Local max longitude index
+- `ju1::Integer` - IN - Local min latitude index
+- `j2::Integer` - IN - Local max latitude index
 
 ## Author
 Original code from Shian-Jiann Lin, DAO.
@@ -2809,21 +2826,21 @@ end
 Sets "dcy" at the Poles.
 
 ## Arguments
-- `dcy::Matrix{AbstractFloat}` - OUT
-- `qqu::Matrix{AbstractFloat}` - IN
-- `i1_gl::Integer` - IN
-- `i2_gl::Integer` - IN
-- `ju1_gl::Integer` - IN
-- `j2_gl::Integer` - IN
-- `j1p::Integer` - IN
-- `ilo::Integer` - IN
-- `ihi::Integer` - IN
-- `julo::Integer` - IN
-- `jhi::Integer` - IN
-- `i1::Integer` - IN
-- `i2::Integer` - IN
-- `ju1::Integer` - IN
-- `j2::Integer` - IN
+- `dcy::Matrix{AbstractFloat}` - OUT - (ilo:ihi, julo:jhi) - Slope of concentration distribution in N-S direction [mixing ratio]
+- `qqu::Matrix{AbstractFloat}` - IN - (ilo:ihi, julo-2:jhi+2) - Concentration contribution from E-W advection [mixing ratio]
+- `i1_gl::Integer` - IN - Global min longitude index
+- `i2_gl::Integer` - IN - Global max longitude index
+- `ju1_gl::Integer` - IN - Global min latitude index
+- `j2_gl::Integer` - IN - Global max latitude index
+- `j1p::Integer` - IN - Global latitude index at the edge of the South polar cap;  j1p=ju1_gl+1 for a polar cap of 1 latitude band
+- `ilo::Integer` - IN - Local min longitude index
+- `ihi::Integer` - IN - Local max longitude index
+- `julo::Integer` - IN - Local min latitude index
+- `jhi::Integer` - IN - Local max latitude index
+- `i1::Integer` - IN - Local min longitude index
+- `i2::Integer` - IN - Local max longitude index
+- `ju1::Integer` - IN - Local min latitude index
+- `j2::Integer` - IN - Local max latitude index
 
 ## Author
 Original code from Shian-Jiann Lin, DAO.
@@ -2891,7 +2908,6 @@ function do_ymist_pole2_i2d2!(
 			for il = (i1 + i2d2):i2
 				dcy[il, j2] = -dcy[il - i2d2, j2]
 			end
-			
 		end
 	end
 end
@@ -2900,26 +2916,26 @@ end
 The 1D "outer" flux form operator based on the Piecewise Parabolic Method (PPM; see also Lin and Rood 1996) for computing the fluxes in the N - S direction.
 
 ## Arguments
-- `jlmt::Integer` - IN
-- `cry::Matrix{AbstractFloat}` - IN
-- `dcy::Matrix{AbstractFloat}` - IN
-- `qqu::Matrix{AbstractFloat}` - IN
-- `qqv::Matrix{AbstractFloat}` - OUT
-- `j1p::Integer` - IN
-- `j2p::Integer` - IN
-- `i1_gl::Integer` - IN
-- `i2_gl::Integer` - IN
-- `ju1_gl::Integer` - IN
-- `j2_gl::Integer` - IN
-- `ilong::Integer` - IN
-- `ilo::Integer` - IN
-- `ihi::Integer` - IN
-- `julo::Integer` - IN
-- `jhi::Integer` - IN
-- `i1::Integer` - IN
-- `i2::Integer` - IN
-- `ju1::Integer` - IN
-- `j2::Integer` - IN
+- `jlmt::Integer` - IN - Controls various options in N-S advection
+- `cry::Matrix{AbstractFloat}` - IN - (ilo:ihi, julo:jhi) - Courant number in N-S direction
+- `dcy::Matrix{AbstractFloat}` - IN - (ilo:ihi, julo:jhi) - Slope of concentration distribution in N-S direction [mixing ratio]
+- `qqu::Matrix{AbstractFloat}` - IN - (ilo:ihi, julo:jhi) - Concentration contribution from E-W advection [mixing ratio]
+- `qqv::Matrix{AbstractFloat}` - OUT - (ilo:ihi, julo:jhi) - Concentration contribution from N-S advection [mixing ratio]
+- `j1p::Integer` - IN - Global latitude indices at the edges of the S/N polar caps; j1p=ju1_gl+1; j2p=j2_gl-1 for a polar cap of 1 latitude band
+- `j2p::Integer` - IN - Global latitude indices at the edges of the S/N polar caps; j1p=ju1_gl+2; j2p=j2_gl-2 for a polar cap of 2 latitude band
+- `i1_gl::Integer` - IN - Global min longitude index
+- `i2_gl::Integer` - IN - Global max longitude index
+- `ju1_gl::Integer` - IN - Global min latitude index
+- `j2_gl::Integer` - IN - Global max latitude index
+- `ilong::Integer` - IN - ilong ??
+- `ilo::Integer` - IN - Local min longitude index
+- `ihi::Integer` - IN - Local max longitude index
+- `julo::Integer` - IN - Local min latitude index
+- `jhi::Integer` - IN - Local max latitude index
+- `i1::Integer` - IN - Local min longitude index
+- `i2::Integer` - IN - Local max longitude index
+- `ju1::Integer` - IN - Local min latitude index
+- `j2::Integer` - IN - Local max latitude index
 
 ## Author
 Original code from Shian - Jiann Lin, DAO.
@@ -2970,7 +2986,7 @@ function fyppm!(
   end
 
   # TODO:
-  # call do_fyppm_pole_i2d2(al, ar, i1_gl, i2_gl, ju1_gl, j2_gl, ilo, ihi, julo, jhi, i1, i2, ju1, j2)
+  do_fyppm_pole_i2d2!(al, ar, i1_gl, i2_gl, ju1_gl, j2_gl, ilo, ihi, julo, jhi, i1, i2, ju1, j2)
 
   for ij = (julo + 1):(jhi - 1), il = ilo:ihi
     a6[il, ij] = 3.0 * (qqu[il, ij] + qqu[il, ij] - (al[il, ij] + ar[il, ij]))
@@ -2990,7 +3006,7 @@ function fyppm!(
     end
 
     # TODO:
-    # call Lmtppm(lenx, jlmt, a61, al1, ar1, dcy1, qqu1)
+    lmtppm!(lenx, jlmt, a61, al1, ar1, dcy1, qqu1)
 
     lenx = 0
 
@@ -3020,20 +3036,20 @@ end
 Sets "al" & "ar" at the Poles.
 
 ## Arguments
-- `al::Matrix{AbstractFloat}` - INOUT
-- `ar::Matrix{AbstractFloat}` - INOUT
-- `i1_gl::Integer` - IN
-- `i2_gl::Integer` - IN
-- `ju1_gl::Integer` - IN
-- `j2_gl::Integer` - IN
-- `ilo::Integer` - IN
-- `ihi::Integer` - IN
-- `julo::Integer` - IN
-- `jhi::Integer` - IN
-- `i1::Integer` - IN
-- `i2::Integer` - IN
-- `ju1::Integer` - IN
-- `j2::Integer` - IN
+- `al::Matrix{AbstractFloat}` - INOUT - (ilo:ihi, julo:jhi) - Left edge value of the test parabola
+- `ar::Matrix{AbstractFloat}` - INOUT - (ilo:ihi, julo:jhi) - Right edge value of the test parabola
+- `i1_gl::Integer` - IN - Global min longitude index
+- `i2_gl::Integer` - IN - Global max longitude index
+- `ju1_gl::Integer` - IN - Global min latitude index
+- `j2_gl::Integer` - IN - Global max latitude index
+- `ilo::Integer` - IN - Local min longitude index
+- `ihi::Integer` - IN - Local max longitude index
+- `julo::Integer` - IN - Local min latitude index
+- `jhi::Integer` - IN - Local max latitude index
+- `i1::Integer` - IN - Local min longitude index
+- `i2::Integer` - IN - Local max longitude index
+- `ju1::Integer` - IN - Local min latitude index
+- `j2::Integer` - IN - Local max latitude index
 
 ## Author
 Original code from Shian - Jiann Lin, DAO.
@@ -3072,24 +3088,24 @@ end
 Sets "dq1" at the Poles.
 
 ## Arguments
-- `geofac_pc::AbstractFloat` - IN
-- `dq1::Matrix{AbstractFloat}` - INOUT
-- `qqv::Matrix{AbstractFloat}` - IN
-- `fy::Matrix{AbstractFloat}` - INOUT
-- `i1_gl::Integer` - IN
-- `i2_gl::Integer` - IN
-- `ju1_gl::Integer` - IN
-- `j2_gl::Integer` - IN
-- `j1p::Integer` - IN
-- `j2p::Integer` - IN
-- `ilo::Integer` - IN
-- `ihi::Integer` - IN
-- `julo::Integer` - IN
-- `jhi::Integer` - IN
-- `i1::Integer` - IN
-- `i2::Integer` - IN
-- `ju1::Integer` - IN
-- `j2::Integer` - IN
+- `geofac_pc::AbstractFloat` - IN - Special geometrical factor (geofac) for Polar cap
+- `dq1::Matrix{AbstractFloat}` - INOUT - (ilo:ihi, julo:jhi) - Species density [hPa]
+- `qqv::Matrix{AbstractFloat}` - IN - (ilo:ihi, julo:jhi) - Concentration contribution from N-S advection [mixing ratio]
+- `fy::Matrix{AbstractFloat}` - INOUT - (ilo:ihi, julo:jhi+1) - N-S mass flux [mixing ratio]
+- `i1_gl::Integer` - IN - Global min longitude index
+- `i2_gl::Integer` - IN - Global max longitude index
+- `ju1_gl::Integer` - IN - Global min latitude index
+- `j2_gl::Integer` - IN - Global max latitude index
+- `j1p::Integer` - IN - Global latitude indices at the edges of the S/N polar caps; J1P=JU1_GL+1; J2P=J2_GL-1 for a polar cap of 1 latitude band
+- `j2p::Integer` - IN - Global latitude indices at the edges of the S/N polar caps; J1P=JU1_GL+2; J2P=J2_GL-2 for a polar cap of 2 latitude band
+- `ilo::Integer` - IN - Local min longitude index
+- `ihi::Integer` - IN - Local max longitude index
+- `julo::Integer` - IN - Local min latitude index
+- `jhi::Integer` - IN - Local max latitude index
+- `i1::Integer` - IN - Local min longitude index
+- `i2::Integer` - IN - Local max longitude index
+- `ju1::Integer` - IN - Local min latitude index
+- `j2::Integer` - IN - Local max latitude index
 
 ## Author
 Original code from Shian - Jiann Lin, DAO.
@@ -3167,27 +3183,27 @@ The 1D "outer" flux form operator based on the Piecewise Parabolic Method (PPM; 
 Modified by S. - J. Lin, 12/14/98, to allow the use of the KORD=7 (klmt=4) option. KORD=7 enforces the 2nd monotonicity constraint of Huynh (1996). Note that in Huynh"s original scheme, two constraints are necessary for the preservation of monotonicity. To use Huynh"s algorithm, it was modified as follows. The original PPM is still used to obtain the first guesses for the cell edges, and as such Huynh"s 1st constraint is no longer needed. Huynh"s median function is also replaced by a simpler yet functionally equivalent in - line algorithm.
 
 ## Arguments
-- `klmt::Integer` - IN
-- `delp1::Array{AbstractFloat, 3}` - IN
-- `wz::Array{AbstractFloat, 3}` - IN
-- `dq1::Array{AbstractFloat, 3}` - INOUT
-- `qq1::Array{AbstractFloat, 3}` - IN
-- `fz::Array{AbstractFloat, 3}` - OUT
-- `j1p::Integer` - IN
-- `ju1_gl::Integer` - IN
-- `j2_gl::Integer` - IN
-- `ilo::Integer` - IN
-- `ihi::Integer` - IN
-- `julo::Integer` - IN
-- `jhi::Integer` - IN
-- `ilong::Integer` - IN
-- `ivert::Integer` - IN
-- `i1::Integer` - IN
-- `i2::Integer` - IN
-- `ju1::Integer` - IN
-- `j2::Integer` - IN
-- `k1::Integer` - IN
-- `k2::Integer` - IN
+- `klmt::Integer` - IN - Controls various options in vertical advection
+- `delp1::Array{AbstractFloat, 3}` - IN - (ilo:ihi, julo:jhi, k1:k2) - Pressure thickness, the pseudo-density in a hydrostatic system at t1 [hPa]
+- `wz::Array{AbstractFloat, 3}` - IN - (i1:i2, ju1:j2, k1:k2) - Large scale mass flux (per time step tdt) in the vertical direction as diagnosed from the hydrostatic relationship [hPa]
+- `dq1::Array{AbstractFloat, 3}` - INOUT - (ilo:ihi, julo:jhi, k1:k2) - Species density [hPa]
+- `qq1::Array{AbstractFloat, 3}` - IN - (:, :, :) - Species concentration [mixing ratio]
+- `fz::Array{AbstractFloat, 3}` - (ilo:ihi, julo:jhi,  k1:k2) - OUT - Vertical flux [mixing ratio]
+- `j1p::Integer` - IN - Global latitude index at the edges of the South polar cap. j1p=ju1_gl+1 for a polar cap of 1 latitude band. J1P=JU1_GL+2 for a polar cap of 2 latitude bands.
+- `ju1_gl::Integer` - IN - Global min latitude index
+- `j2_gl::Integer` - IN - Global max latitude index
+- `ilo::Integer` - IN - Local min longitude index
+- `ihi::Integer` - IN - Local max longitude index
+- `julo::Integer` - IN - Local min latitude index
+- `jhi::Integer` - IN - Local max latitude index
+- `ilong::Integer` - IN - Dimensions in longitude ???
+- `ivert::Integer` - IN - Dimensions in altitude ???
+- `i1::Integer` - IN - Local min longitude index
+- `i2::Integer` - IN - Local max longitude index
+- `ju1::Integer` - IN - Local min latitude index
+- `j2::Integer` - IN - Local max latitude index
+- `k1::Integer` - IN - Local min altitude index
+- `k2::Integer` - IN - Local max altitude index
 
 ## Author
 Original code from Shian - Jiann Lin, DAO.
@@ -3238,7 +3254,7 @@ function fzppm!(
   # Work array
   dp = zeros(AbstractFloat, i1:i2, ju1:j2, k1:k2)
 
-  # !.sds... diagnostic vertical flux for species - set top to 0.0
+  # .sds... diagnostic vertical flux for species - set top to 0.0
   fz[:, :, :] .= zeros(AbstractFloat, ilo:ihi, julo:jhi, k1:k2)
 
   k1p1 = k1 + 1
@@ -3272,7 +3288,6 @@ function fzppm!(
   # c?
   # Loop over latitudes (to save memory).
 
-  @label ijloop
   for ij = ju1:j2 
     if (ij == ju1_gl + 1 || ij == j2_gl - 1) && (j1p != ju1_gl + 1)
       @goto ijloop
@@ -3356,7 +3371,7 @@ function fzppm!(
       end
 
       # TODO:
-      # call Lmtppm(lenx, 0, a6[i1, ik], al[i1, ik], ar[i1, ik], dca[i1, ik], qq1a[i1, ik])
+      lmtppm!(lenx, 0, a6[i1, ik], al[i1, ik], ar[i1, ik], dca[i1, ik], qq1a[i1, ik])
     end
 
     for ik = k2m1:k2
@@ -3364,8 +3379,7 @@ function fzppm!(
         a6[il, ik] = 3.0 * (qq1a[il, ik] + qq1a[il, ik] - (al[il, ik] + ar[il, ik]))
       end
 
-      # TODO:
-      # call Lmtppm(lenx, 0, a6[i1, ik], al[i1, ik], ar[i1, ik], dca[i1, ik], qq1a[i1, ik])
+      lmtppm!(lenx, 0, a6[i1, ik], al[i1, ik], ar[i1, ik], dca[i1, ik], qq1a[i1, ik])
     end
 
     # Interior depending on klmt.
@@ -3415,7 +3429,7 @@ function fzppm!(
       end
 
       # TODO:
-      # call Lmtppm(lenx, klmt, a61, al1, ar1, dca1, qq1a1)
+      lmtppm!(lenx, klmt, a61, al1, ar1, dca1, qq1a1)
 
       lenx = 0
       for ik = k1p2:k2m2, il = i1:i2
@@ -3456,6 +3470,8 @@ function fzppm!(
     for ik = k1p1:k2m1, il = i1:i2
       dq1[il, ij, ik] = dq1[il, ij, ik] + dca[il, ik] - dca[il, ik + 1]
     end
+		
+		@label ijloop
   end
 end
 
@@ -3463,16 +3479,16 @@ end
 Averages pressure at the Poles when the Polar cap is enlarged. It makes the last two latitudes equal.
 
 ## Arguments
-- `area_1d::Array{AbstractFloat}` - IN
-- `press::Matrix{AbstractFloat}` - INOUT
-- `i1::Integer` - IN
-- `i2::Integer` - IN
-- `ju1::Integer` - IN
-- `j2::Integer` - IN
-- `ilo::Integer` - IN
-- `ihi::Integer` - IN
-- `julo::Integer` - IN
-- `jhi::Integer` - IN
+- `area_1d::Array{AbstractFloat}` - (ju1:j2) - IN - Surface area of grid box
+- `press::Matrix{AbstractFloat}` - (ilo:ihi, julo:jhi) - INOUT - Surface pressure [hPa]
+- `i1::Integer` - IN - Local min longitude
+- `i2::Integer` - IN - Local max longitude
+- `ju1::Integer` - IN - Local min latitude
+- `j2::Integer` - IN - Local max latitude
+- `ilo::Integer` - IN - Local min longitude index
+- `ihi::Integer` - IN - Local max longitude index
+- `julo::Integer` - IN - Local min latitude index
+- `jhi::Integer` - IN - Local max latitude index
 
 ## Author
 Philip Cameron - Smith and John Tannahill, GMI project @ LLNL (2003).
@@ -3498,11 +3514,9 @@ function average_press_poles!(
 )::Nothing
   # Compute the sum of surface area
 
-  # TODO: `dble` is not an excisting function, it"s probably imported from somewhere else
-
   rel_area = zeros(AbstractFloat, ju1:j2)
   # TODO: looks like a map
-  sum_area = sum[area_1d] * dble(i2)
+  sum_area = sum[area_1d] * i2
   # calculate rel_area for each lat. (ccc, 11/20/08)
   for j = ju1:j2
     rel_area[j] = area_1d[j] / sum_area
@@ -3511,7 +3525,7 @@ function average_press_poles!(
   # South Pole
 
   # Surface area of the S. Polar cap
-  sum_area = sum(rel_area[ju1:(ju1 + 1)]) * dble(i2)
+  sum_area = sum(rel_area[ju1:(ju1 + 1)]) * i2
 
   # TODO: This looks like a reduce
   # Zero
@@ -3527,7 +3541,7 @@ function average_press_poles!(
   # North Pole
 
   # Surface area of the N. Polar cap
-  sum_area = sum(rel_area[(j2 - 1):j2]) * dble(i2)
+  sum_area = sum(rel_area[(j2 - 1):j2]) * i2
 
   # TODO: This looks like a reduce
   # Zero
