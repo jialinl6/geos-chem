@@ -1,7 +1,1064 @@
+"""
+! !MODULE: tpcore_fvdas_mod.F90
+!
+! !DESCRIPTION: subsection*{Overview}
+!  Module Tpcore_Fvdas_Mod contains routines for the TPCORE
+!  transport scheme, as implemented in the GMI model (cf. John Tannahill),
+!  based on Lin  Rood 1995.  The Harvard Atmospheric Chemistry Modeling Group
+!  has added modifications to implement the Philip-Cameron Smith pressure
+!  fixer for mass conservation.  Mass flux diagnostics have also been added.
+!
+!subsection*{References}
+!  begin{enumerate}
+!  item Lin, S.-J., and R. B. Rood, 1996: emph{Multidimensional flux
+!         form semi-Lagrangian transport schemes},
+!         underline{ Mon. Wea. Rev.}, textbf{124}, 2046-2070.
+!  item Lin, S.-J., W. C. Chao, Y. C. Sud, and G. K. Walker, 1994:
+!         emph{A class of the van Leer-type transport schemes and its
+!         applications to the moisture transport in a General Circulation
+!         Model}, underline{Mon. Wea. Rev.}, textbf{122}, 1575-1593.
+!  end{enumerate}
+!
+!subsection*{Selecting EW, NS and vertical advection options}
+!
+!  The flags IORD, JORD, KORD select which transport schemes are used in the
+!  EW, NS, and vertical directions, respectively.  Here is a list of the
+!  possible values that IORD, JORD, KORD may be set to (original notes from
+!  S-J Lin):
+!
+!  begin{enumerate}
+!  item 1st order upstream scheme (too diffusive, not a real option;
+!         it can be used for debugging purposes; this is THE only known
+!         "linear" monotonic advection scheme.).
+!  item 2nd order van Leer (full monotonicity constraint;
+!         see Lin et al 1994, MWR)
+!  item monotonic PPM* (Collela & Woodward 1984)
+!  item semi-monotonic PPM (same as 3, but overshoots are allowed)
+!  item positive-definite PPM (constraint on the subgrid distribution is
+!         only strong enough to prevent generation of negative values;
+!         both overshoots & undershoots are possible).
+!  item un-constrained PPM (nearly diffusion free; faster but
+!         positivity of the subgrid distribution is not quaranteed. Use
+!         this option only when the fields and winds are very smooth.
+!  item HuynhVan LeerLin full monotonicity constraint.  Only KORD can be
+!         set to 7 to enable the use of Huynh"s 2nd monotonicity constraint
+!         for piece-wise parabolic distribution.
+!  end {enumerate}
+!
+!  Recommended values:
+!
+!  begin{itemize}
+!  item IORD=JORD=3 for high horizontal resolution.
+!  item KORD=3 or 7
+!  end{itemize}
+!
+!  The implicit numerical diffusion decreases as _ORD increases.
+!  DO NOT use option 4 or 5 for non-positive definite scalars
+!  (such as Ertel Potential Vorticity).
+!
+!
+! In GEOS-Chem we have been using IORD=3, JORD=3, KORD=7.  We have tested
+! the OpenMP parallelization with these options.  GEOS-Chem users who wish to
+! use different (I,J,K)ORD options should consider doing single-procsessor
+! vs. multi-processor tests to test the implementation of the parallelization.
+!
+!subsection*{GEOS-4 and GEOS-5 Hybrid Grid Definition}
+!
+!  For GEOS-4 and GEOS-5 met fields, the pressure at the bottom edge of
+!  grid box (I,J,L) is defined as follows:
+!
+!     P_{edge}(I,J,L) = A_{k}(L) + [ B_{k}(L) * P_{surface}(I,J) ]
+!
+!  where
+!
+!  begin{itemize}
+!  item P_{surface}(I,J) is the "true" surface pressure at lon,lat (I,J)
+!  item A_{k}(L) has the same units as surface pressure [hPa]
+!  item B_{k}(L) is a unitless constant given at level edges
+!  end{itemize}
+!
+!  A_{k}(L) and B_{k}(L) are supplied to us by GMAO.
+!
+!
+! !REMARKS:
+!  Ak(L) and Bk(L) are defined at layer edges.
+!
+!
+!                  
+!                ------ Model top P=ak(1) --------- ak(1), bk(1)
+!               |
+!    delp(1)    |  ........... q(i,j,1) ............
+!               |
+!                ---------------------------------  ak(2), bk(2)
+!
+!
+!
+!                ---------------------------------  ak(k), bk(k)
+!               |
+!    delp(k)    |  ........... q(i,j,k) ............
+!               |
+!                ---------------------------------  ak(k+1), bk(k+1)
+!
+!
+!
+!                ---------------------------------  ak(km), bk(km)
+!               |
+!    delp(km)   |  ........... q(i,j,km) .........
+!               |
+!                -----Earth"s surface P=Psfc ------ ak(km+1), bk(km+1)
+!                 
+!
+! Note: surface pressure can be of any unit (e.g., pascal or mb) as
+! long as it is consistent with the definition of (ak, bk) defined above.
+!
+! Winds (u,v), ps, and q are assumed to be defined at the same points.
+!
+! The latitudes are given to the initialization routine: init_tpcore.
+"""
 module tpcore_fvdas_mod
 
 """
-function Set\_Jn\_Js determines Jn and Js, by looking
+Subroutine Init_Tpcore allocates and initializes all module
+!  variables,
+
+! !REVISION HISTORY:
+!   05 Dec 2008 - C. Carouge  - Replaced TPCORE routines by S-J Lin and Kevin
+!                               Yeh with the TPCORE routines from GMI model.
+!                               This eliminates the polar overshoot in the
+!                               stratosphere.
+!  See https://github.com/geoschem/geos-chem for complete history
+"""
+function init_tpcore!(
+	im,
+	jm,
+	km,
+	jfirst,
+	jlast,
+	ng,
+	mg,
+	dt,
+	ae,
+	clat,
+	rc
+)::Nothing
+	# ! !USES:
+	# !
+	# USE PhysConstants
+	# USE ErrCode_Mod
+	# !
+	# ! !INPUT PARAMETERS:
+	# !
+	# INTEGER,        INTENT(IN)  :: IM         ! Global E-W dimension
+	# INTEGER,        INTENT(IN)  :: JM         ! Global N-S dimension
+	# INTEGER,        INTENT(IN)  :: KM         ! Vertical dimension
+	# INTEGER,        INTENT(IN)  :: NG         ! large ghost width
+	# INTEGER,        INTENT(IN)  :: MG         ! small ghost width
+	# REAL(fp),       INTENT(IN)  :: dt         ! Time step in seconds
+	# REAL(fp),       INTENT(IN)  :: ae         ! Earth"s radius (m)
+	# REAL(fp),       INTENT(IN)  :: clat(JM)   ! latitude in radian
+	# !
+	# ! !OUTPUT PARAMETERS:
+	# !
+	# INTEGER,        INTENT(OUT) :: JFIRST     ! Local first index for N-S axis
+	# INTEGER,        INTENT(OUT) :: JLAST      ! Local last  index for N-S axis
+	# INTEGER,        INTENT(OUT) :: RC         ! Success or failure
+
+	
+	elat = zeros(AbstractFloat, jm + 1) # cell edge latitude in radian
+	sine = zeros(AbstractFloat, jm + 1)
+	sine_25 = zeros(AbstractFloat, jm + 1)
+
+	# Initialize
+	rc      = gc_success
+	errmsg  = ""
+	thisloc = " -> at Init_Tpcore (in module GeosCore/tpcore_fvas_mod.F90)"
+
+	# NOTE: since we are not using MPI parallelization, we can set JFIRST and JLAST to the global grid limits in latitude. (bmy, 12/3/08)
+	jfirst = 1
+	jlast = jm
+
+	if jlast - jfirst < 2
+		println("Minimum size of subdomain is 3")
+	end
+
+	# Allocate arrays
+	
+	# TODO: Translate to Julia
+	
+	# ALLOCATE( cosp( JM ), STAT=RC )
+	# CALL GC_CheckVar( "tpcore_fvdas_mod.F90:cosp",  0, RC )
+	# IF ( RC /= GC_SUCCESS ) RETURN
+
+	# ALLOCATE( cose( JM ), STAT=RC )
+	# CALL GC_CheckVar( "tpcore_fvdas_mod.F90:cose",  0, RC )
+	# IF ( RC /= GC_SUCCESS ) RETURN
+
+	# ALLOCATE( gw( JM ), STAT=RC )
+	# CALL GC_CheckVar( "tpcore_fvdas_mod.F90:gw",    0, RC )
+	# IF ( RC /= GC_SUCCESS ) RETURN
+
+	# ALLOCATE( dtdx5( JM ), STAT=RC )
+	# CALL GC_CheckVar( "tpcore_fvdas_mod.F90:dtdx5", 0, RC )
+	# IF ( RC /= GC_SUCCESS ) RETURN
+
+	# ALLOCATE( dtdy5( JM ), STAT=RC )
+	# CALL GC_CheckVar( "tpcore_fvdas_mod.F90:dtdy5", 0, RC )
+	# IF ( RC /= GC_SUCCESS ) RETURN
+
+	# ALLOCATE( DLAT( JM ), STAT=RC )                 ! For PJC pressure-fixer
+	# CALL GC_CheckVar( "tpcore_fvdas_mod.F90:dlat",  0, RC )
+	# IF ( RC /= GC_SUCCESS ) RETURN
+
+	# Define quantities
+	
+	# TODO: `dble` figure out what it does
+	dlon = 2. * pi / dble( im )
+
+	# S. Pole
+	elat[1] = -0.5 * π
+	sine[1] = -1.0
+	sine_25[1] = -1.0
+	cose[1] = 0.0
+
+	for j = 2:jm
+		elat[j] = 0.5 * (clat[j - 1] + clat[j])
+		sine[j] = sin(elat[j])
+		sine_25[j] = sin(clat[j])
+		cose[j] = cos(elat[j])
+	end
+
+	# N. Pole
+	elat[jm + 1] = 0.5 * π
+	sine[jm + 1] = 1.0
+	sine_25[jm + 1] = 1.0
+
+	# Polar cap (S. Pole)
+	dlat[1] = 2.0 * (elat[2] - elat[1])
+	for j = 2:(jm - 1)
+		dlat[j] = elat[j + 1] - elat[j]
+	end
+
+	# Polar cap (N. Pole)
+	dlat[jm] = 2.0 * (elat[jm + 1] - elat[jm])
+
+	for j = 1:jm
+		gw[j] = sine[j + 1] - sine[j]
+		cosp[j] = gw[j] / dlat[j]
+
+		dtdx5[j] = 0.5 * dt / (dlon * ae * cosp[j])
+		dtdy5[j] = 0.5 * dt / (ae * dlat[j])
+	end
+
+	# Echo info to stdout
+	println(repeat("=", 79))
+	println("TPCORE_FVDAS (based on GMI) Tracer Transport Module successfully initialized")
+	println(repeat("=", 79))
+end
+
+"""
+function Tpcore_FvDas takes horizontal winds on sigma
+	!  (or hybrid sigma-p) surfaces and calculates mass fluxes, and then updates
+	!   the 3D mixing ratio fields one time step (tdt).  The basic scheme is a
+	!   Multi-Dimensional Flux Form Semi-Lagrangian (FFSL) based on the van Leer
+	!   or PPM (see Lin and Rood, 1995).
+	
+! !AUTHOR:
+!   Original code from Shian-Jiann Lin, DAO)
+!   John Tannahill, LLNL (jrt@llnl.gov)
+!
+! !REVISION HISTORY:
+!  05 Dec 2008 - C. Carouge  - Replaced TPCORE routines by S-J Lin and Kevin
+!                              Yeh with the TPCORE routines from GMI model.
+!                              This eliminates the polar overshoot in the
+!                              stratosphere.
+!  See https://github.com/geoschem/geos-chem for complete history
+"""
+function tpcore_fvdas(
+	dt,
+	ae,
+	im,
+	jm,
+	km,
+	jfirst,
+	jlast,
+	ng,
+	mg,
+	nq,
+	ak,
+	bk,
+	u,
+	v,
+	ps1,
+	ps2,
+	ps,
+	iord,
+	jord,
+	kord,
+	n_adj,
+	xmass,
+	ymass,
+	fill,
+	area_m2,
+	state_chm,
+	state_diag
+)
+	# !
+	# ! !USES:
+	# !
+	# 	! Include files w/ physical constants and met values
+	# 	USE PhysConstants
+	# 	USE ErrCode_Mod
+	# 	USE State_Chm_Mod,  ONLY : ChmState
+	# 	USE State_Diag_Mod, ONLY : DgnState
+	# 	USE error_mod
+	# !
+	# ! !INPUT PARAMETERS:
+	# !
+	# 	! Transport time step [s]
+	# 	REAL(fp),  INTENT(IN)  :: dt
+
+	# 	! Earth"s radius [m]
+	# 	REAL(fp),  INTENT(IN)  :: ae
+
+	# 	! Global E-W, N-S, and vertical dimensions
+	# 	INTEGER, INTENT(IN)    :: IM
+	# 	INTEGER, INTENT(IN)    :: JM
+	# 	INTEGER, INTENT(IN)    :: KM
+
+	# 	! Latitude indices for local first box and local last box
+	# 	! (NOTE: for global grids these are 1 and JM, respectively)
+	# 	INTEGER, INTENT(IN)    :: JFIRST
+	# 	INTEGER, INTENT(IN)    :: JLAST
+
+	# 	! Primary ghost region
+	# 	! (NOTE: only required for MPI parallelization; use 0 otherwise)
+	# 	INTEGER, INTENT(IN)    :: ng
+
+	# 	! Secondary ghost region
+	# 	! (NOTE: only required for MPI parallelization; use 0 otherwise)
+	# 	INTEGER, INTENT(IN)    :: mg
+
+	# 	! Ghosted latitudes (3 required by PPM)
+	# 	! (NOTE: only required for MPI parallelization; use 0 otherwise)
+	# 	INTEGER, INTENT(IN)    :: nq
+
+	# 	! Flags to denote E-W, N-S, and vertical transport schemes
+	# 	INTEGER, INTENT(IN)    :: iord
+	# 	INTEGER, INTENT(IN)    :: jord
+	# 	INTEGER, INTENT(IN)    :: kord
+
+	# 	! Number of adjustments to air_mass_flux (0 = no adjustment)
+	# 	INTEGER, INTENT(IN)    :: n_adj
+
+	# 	! Ak and Bk coordinates to specify the hybrid grid
+	# 	! (see the REMARKS section below)
+	# 	REAL(fp),  INTENT(IN)  :: ak(KM+1)
+	# 	REAL(fp),  INTENT(IN)  :: bk(KM+1)
+
+	# 	! u-wind (m/s) at mid-time-level (t=t+dt/2)
+	# 	REAL(fp),  INTENT(IN)  :: u(:,:,:)
+
+	# 	! E/W and N/S mass fluxes [kg/s]
+	# 	! (These are computed by the pressure fixer, and passed into TPCORE)
+	# 	REAL(fp),  INTENT(IN)  :: XMASS(:,:,:)
+	# 	REAL(fp),  INTENT(IN)  :: YMASS(:,:,:)
+
+	# 	! Grid box surface area for mass flux diag [m2]
+	# 	REAL(fp),  INTENT(IN)  :: AREA_M2(JM)
+
+	# 	LOGICAL, INTENT(IN)    :: FILL    ! Fill negatives ?
+	# !
+	# ! !INPUT/OUTPUT PARAMETERS:
+	# !
+	# 	! V-wind (m/s) at mid-time-level (t=t+dt/2)
+	# 	REAL(fp),  INTENT(INOUT) :: v(:,:,:)
+
+	# 	! surface pressure at current time
+	# 	REAL(fp),  INTENT(INOUT) :: ps1(IM, JFIRST:JLAST)
+
+	# 	! surface pressure at future time=t+dt
+	# 	REAL(fp),  INTENT(INOUT) :: ps2(IM, JFIRST:JLAST)
+
+	# 	! Diagnostics state object
+	# 	TYPE(ChmState), INTENT(INOUT) :: State_Chm
+	# 	TYPE(DgnState), INTENT(INOUT) :: State_Diag
+	# !
+	# ! !OUTPUT PARAMETERS:
+	# !
+	# 	! "Predicted" surface pressure [hPa]
+	# 	REAL(fp),  INTENT(OUT)   :: ps(IM,JFIRST:JLAST)
+
+	# !
+	# ! !DEFINED PARAMETERS:
+	# !
+	# 	INTEGER, PARAMETER :: ADVEC_CONSRV_OPT = 2          ! 2=floating pressure
+	# 	LOGICAL, PARAMETER :: CROSS = .true.
+	# !
+	# ! !LOCAL VARIABLES:
+	# !
+	# 	INTEGER            :: rj2m1
+	# 	INTEGER            :: j1p, j2p
+	# 	INTEGER            :: jn (km)
+	# 	INTEGER            :: js (km)
+	# 	INTEGER            :: il, ij, ik, iq, k, j, i, Kflip
+	# 	INTEGER            :: num, k2m1, S
+	# 	INTEGER            :: north, south
+
+	# 	REAL(fp)           :: dap   (km)
+	# 	REAL(fp)           :: dbk   (km)
+	# 	REAL(fp)           :: cx(im,jfirst-ng:jlast+ng,km)  ! E-W CFL # on C-grid
+	# 	REAL(fp)           :: cy(im,jfirst:jlast+mg,km)     ! N-S CFL # on C-grid
+	# 	REAL(fp)           :: delp1(im, jm, km)
+	# 	REAL(fp)           :: delp2(im, jm, km)
+	# 	REAL(fp)           :: delpm(im, jm, km)
+	# 	REAL(fp)           :: pu   (im, jm, km)
+	# 	REAL(fp)           :: dpi(im, jm, km)
+	# 	REAL(fp)           :: geofac  (jm)     ! geometrical factor for meridional
+	# 																				! advection; geofac uses correct
+	# 																				! spherical geometry, and replaces
+	# 																				! RGW_25. (ccc, 4/1/09)
+	# 	REAL(fp)           :: geofac_pc        ! geometrical gactor for poles.
+	# 	REAL(fp)           :: dp
+	# 	REAL(fp)           :: dps_ctm(im,jm)
+	# 	REAL(fp)           :: ua (im, jm, km)
+	# 	REAL(fp)           :: va (im, jm, km)
+	# 	REAL(fp)           :: wz(im, jm, km)
+	# 	REAL(fp)           :: dq1(im,jfirst-ng:jlast+ng,km)
+
+	# 	! qqu, qqv, adx and ady are now 2d arrays for parallelization purposes.
+	# 	!(ccc, 4/1/08)
+	# 	REAL(fp)           :: qqu(im, jm)
+	# 	REAL(fp)           :: qqv(im, jm)
+	# 	REAL(fp)           :: adx(im, jm)
+	# 	REAL(fp)           :: ady(im, jm)
+
+	# 	! fx, fy, fz and qtp are now 4D arrays for parallelization purposes.
+	# 	! (ccc, 4/1/09)
+	# 	REAL(fp)           :: fx    (im, jm,   km, nq)
+	# 	REAL(fp)           :: fy    (im, jm+1, km, nq)    ! one more for edges
+	# 	REAL(fp)           :: fz    (im, jm,   km, nq)
+
+	# 	LOGICAL, SAVE      :: first = .true.
+
+	# 	# ----------------------------------------------------
+	# 	# ilmt : controls various options in E-W     advection
+	# 	# jlmt : controls various options in N-S     advection
+	# 	# klmt : controls various options in vertcal advection
+	# 	# ----------------------------------------------------
+
+	# 	INTEGER, SAVE      :: ilmt, jlmt, klmt
+	# 	INTEGER            :: js2g0, jn2g0
+
+	# 	# Add pointer to avoid array temporary in call to FZPPM (bmy, 6/5/13)
+	# 	REAL(fp),  POINTER :: q_ptr(:,:,:)
+
+	# Add definition of j1p and j2p for enlarge polar cap. (ccc, 11/20/08)
+	j1p = 3
+	j2p = jm - j1p + 1
+
+	# MACROS
+	#ifdef TOMAS
+		# For TOMAS microphysics: zero out UA and VA.
+		# Segregate this block from the code with an #ifdef block. We can"t bring this into the standard GEOS-Chem yet, since that will make it hard to compare benchmark results to prior versions.  When we do bring this change into the standard code, we will have to benchmark it. (sfarina, bmy, 5/30/13)
+		for ik = 1:km, ij = 1:jm, il = 1:im
+			va[il, ij, ik] = 0.0
+			ua[il, ij, ik] = 0.0
+		end
+	#endif
+
+	# Average surf. pressures in the polar cap. (ccc, 11/20/08)
+	# call average_press_poles!(area_m2, ps1, 1, im, 1, jm, 1, im, 1, jm)
+	# call average_press_poles!(area_m2, ps2, 1, im, 1, jm, 1, im, 1, jm)
+	
+	# Calculation of some geographic factors. (ccc, 11/20/08)
+	rj2m1 = jm - 1
+	dp = π / rj2m1
+
+	for ij = 1:jm
+		geofac[ij] = dp / (2.0 * area_m2[ij] / (sum(area_m2) * im) * im)
+	end
+
+	geofac_pc = dp / (2.0 * (sum(area_m2[1:2]) / (sum(area_m2) * im)) * im)
+
+	if first
+		first = false
+		# call set_lmts!(ilmt, jlmt, klmt, im, jm, iord, jord, kord)
+	end
+
+	# Pressure calculations. (ccc, 11/20/08)
+	for ik = 1:km
+		dap[ik] = ak[ik + 1] - ak[ik]
+		dbk[ik] = bk[ik + 1] - bk[ik]
+	end
+
+	# NOTE: Translate parallel for below to parallel loop in Julia
+	# !$OMP PARALLEL DO        &
+	# !$OMP DEFAULT( SHARED  ) &
+	# !$OMP PRIVATE( IK, IQ, q_ptr )
+	for ik = 1:km
+		# call set_press_terms!(dap[ik], dbk[ik], ps1, ps2, delp1[:, :, ik], delpm[:, :, ik], pu[:, :, ik], 1, jm, 1, im, 1, jm, j1p, j2p, 1, im, 1, jm)
+				
+		# ...intent(in)  dap - difference in ai across layer (mb)
+		# ...intent(in)  dbk - difference in bi across layer (mb)
+		# ...intent(in)  pres1 - surface pressure at t1 (mb)
+		# ...intent(in)  pres2 - surface pressure at t1+tdt (mb)
+		# ...intent(out) delp1 - pressure thickness at t1 (mb)
+		# ...intent(out) delpm - pressure thickness at t1+tdt/2 (mb)
+		# ...intent(out) pu - pressure at edges of box for "u" (mb)
+
+		if j1p != 1 + 1
+			for iq = 1:nq
+
+				# TODO: translate to Julia
+				# TODO: Translate % to Julia
+				# q_ptr => State_Chm%Species(iq)%Conc(:,:,km:1:-1)
+				
+				# call average_const_poles!(dap[ik], dbk[ik], area_m2, ps1, q_ptr[:, :, ik], 1, jm, im, 1, im, 1, jm, 1, im, 1, jm)
+				
+				# TODO: translate to Julia
+				# q_ptr => NULL()
+			end
+		end
+		
+		# call calc_courant!(cose, delpm[:, :, ik], pu[:, :, ik], xmass[:, :, ik], ymass[:, :, ik], cx[:, :, ik], cy[:, :, ik], j1p, j2p, 1, jm, 1, im, 1, jm, 1, im, 1, jm)
+
+		# call calc_divergence!(true, geofac_pc, geofac, dpi[:, :, ik], xmass[:, :, ik], ymass[:, :, ik], j1p, j2p, 1, im, 1, jm, 1, im, 1, jm, 1, im, 1, jm)
+				
+		# call set_cross_terms!(cx[:, :, ik], cy[:, :, ik], ua[:, :, ik], va[:, :, ik], j1p, j2p, 1, im, 1, jm, 1, im, 1, jm, 1, im, 1, jm, cross)
+	end
+
+	dps_ctm[:, :] .= sum(dpi[:, :, :])
+
+	# call calc_vert_mass_flux!(dbk, dps_ctm, dpi, wz, 1, im, 1, jm, 1, km)
+
+	# .sds2.. have all mass flux here: east-west(xmass),
+	#         north-south(ymass), vertical(wz)
+	# .sds2.. save omega (vertical flux) as diagnostic
+	
+	# call set_jn_js(jn, js, cx, 1, im, 1, jm, 1, jm, j1p, j2p, 1, im, 1, jm, 1, km)
+	
+	if advec_consrv_opt == 0
+		# NOTE: Translate parallel for below to parallel loop in Julia
+		# !$OMP PARALLEL DO           &
+		# !$OMP DEFAULT( SHARED     ) &
+		# !$OMP PRIVATE( IK, IJ, IL )
+		for ik = 1:km, ij = 1:jm, il = 1:im
+			delp2[il, ij, ik] = dap[ik] + (dbk[ik] * (ps1[il, ij] + dps_ctm[il, ij]))
+		end
+	elseif advec_consrv_opt == 1 || advec_consrv_opt == 2
+		# NOTE: Translate parallel for below to parallel loop in Julia
+		# !$OMP PARALLEL DO           &
+		# !$OMP DEFAULT( SHARED     ) &
+		# !$OMP PRIVATE( IK, IJ, IL )
+		for ik = 1:km, ij = 1:jm, il = 1:im
+			delp2[il, ij, ik] = dap[ik] + (dbk[ik] * ps2[il, ij])
+		end
+	end
+
+	# Calculate surf. pressure at t+dt. (ccc, 11/20/08)
+	ps = ak[1] + sum(delp2)
+
+	# > For time optimization : we parallelize over tracers and we loop over the levels outside horizontal transport functions. (ccc, 4/1/09)
+	# > Also zeroed PRIVATE variables within the loop, and set jn(ik) and js(ik) to PRIVATE loop variables.  This seems to avoid small diffs in output.
+	# > -- Bob Yantosca (04 Jan 2022)
+
+	# NOTE: Translate parallel for below to parallel loop in Julia
+	# !$OMP PARALLEL DO                                                     &
+	# !$OMP DEFAULT( SHARED                                               ) &
+	# !$OMP PRIVATE( iq, dq1, ik, adx, ady, q_ptr, qqu, qqv, north, south )
+	for iq = 1:nq
+		# TODO: figure out how to translate this to Julia
+		# q_ptr => state_chm%species(iq)%conc(:,:,km:1:-1)
+
+		# Zero 3-D arrays for each species
+		dq1 = 0.0
+
+		for ik = 1:km
+			# Zero PRIVATE variables for safety"s sake
+			adx = 0.0
+			ady = 0.0
+			qqu = 0.0
+			qqv = 0.0
+
+			# Northernmost and southernmost latitude indices by level
+			north = jn[ik]
+			south = js[ik]
+
+			# .sds.. convert to "mass"
+			dq1[:, :, ik] .= q_ptr[:, :, ik] * delp1[:, :, ik]
+
+			# call calc_advec_cross_terms!(north, south, q_ptr[:, :, ik], qqu, qqv, ua[:, :, ik], va[:, :, ik], j1p, j2p, im, 1, jm, 1, im, 1, jm, 1, im, 1, jm, cross)
+			
+			# .sds.. notes on arrays
+			#   q   (in)  - species mixing ratio
+			#   qqu (out) - concentration contribution from E-W
+			#                advection cross terms(mixing ratio)
+			#   qqv (out) - concentration contribution from N-S
+			#                advection cross terms(mixing ratio)
+			#   ua  (in)  - average of Courant numbers from il and il+1
+			#   va  (in)  - average of Courant numbers from ij and ij+1
+
+			# Add advective form E-W operator for E-W cross terms.
+
+			# call xadv_dao2!(2, north, south, adx, qqv, ua[:, :, ik], 1, im, 1, jm, 1, jm, j1p, j2p, 1, im, 1, jm)
+
+			# .sds notes on output arrays
+			#   adx (out)- cross term due to E-W advection (mixing ratio)
+			#   qqv (in) - concentration contribution from N-S
+			#              advection (mixing ratio)
+			#   ua  (in) - average of Courant numbers from il and il+1
+			# .sds
+
+			# Add advective form N-S operator for N-S cross terms.
+
+			# call Yadv_Dao2(2, ady, qqu, va[:, :, ik], 1, im, 1, jm, j1p, j2p, 1, im, 1, jm, 1, im, 1, jm)
+
+			# .sds notes on output arrays
+			#   ady (out)- cross term due to N-S advection (mixing ratio)
+			#   qqu (in) - concentration contribution from N-S advection
+			#              (mixing ratio)
+			#   va  (in) - average of Courant numbers from il and il+1
+			# .sds
+			# 
+			# .bmy notes: use a polar cap of 2 boxes (i.e. the "2" as
+			#  the first argument to YADV_DAO2.  The older TPCORE only had
+			#  a polar cap of 1 box (just the Pole itself).  Claire figured
+			#  this out.  (bmy, 12/11/08)
+			# ... update constituent array qq1 by adding in cross terms
+			#            - use in fzppm
+				
+			q_ptr[:, :, ik] = q_ptr[:, :, ik] + ady + adx
+
+			# call xtp(ilmt, north, south, pu[:, :, ik],  cx[:, :, ik], dq1[:, :, ik], qqv, xmass[:, :, ik], fx[:, :, ik, iq], j1p, j2p, im, 1, jm, 1, im, 1, jm, 1, im, 1, jm, iord)
+
+			# .sds notes on output arrays
+			#   pu  (in)    - pressure at edges in "u" (mb)
+			#   crx (in)    - Courant number in E-W direction
+			#   dq1 (inout) - species density (mb) - updated with the E-W flux
+			#                 fx in Xtp)
+			#   qqv (inout) - continue oncentration contribution from N-S advection
+			#                 (mixing ratio)
+			#   xmass(in)   - horizontal mass flux in E-W direction (mb)
+			#   fx  (out)   - species E-W mass flux
+			# .sds
+			
+			# call ytp(jlmt, geofac_pc, geofac, cy[:, :, ik], dq1[:, :, ik], qqu, qqv, ymass[:, :, ik], fy[:, :, ik, iq], j1p, j2p, 1, im, 1, jm, im, 1, im, 1, jm, 1, im, 1, jm, jord)
+
+			# .sds notes on output arrays
+			#   cy (in)     - Courant number in N-S direction
+			#   dq1 (inout) - species density (mb) - updated with the N-S flux
+			#                 (fy in Ytp)
+			#   qqu (in)    - concentration contribution from E-W advection
+			#                 (mixing ratio)
+			#   qqv (inout) - concentration contribution from N-S advection
+			#                 (mixing ratio)
+			#   ymass(in)   - horizontal mass flux in E-W direction (mb)
+			#   fy  (out)   - species N-S mass flux (need to mult by geofac)
+			# .sds
+		end # ik
+		
+		# call fzppm(klmt, delp1, wz, dq1, q_ptr, fz[]:, :, :, iq], j1p, 1, jm, 1, im, 1, jm, im, km, 1, im, 1, jm, 1, km)
+
+		# .sds notes on output arrays
+		#    wz  (in) : vertical mass flux
+		#    dq1 (inout) : species density (mb)
+		#    q (in) : species concentration (mixing ratio)
+		# .sds
+
+		if fill
+			# call qckxyz(dq1, j1p, j2p, 1, jm, 1, im, 1, jm, 1, im, 1, jm, 1, km)
+		end
+
+		q_ptr[:, :, :] .= dq1 / delp2
+
+		if j1p != 2
+			q_ptr[:, 2, :] .= q_ptr[:, 1, :]
+			q_ptr[:, jm - 1, :]  .= q_ptr[:, jm, :]
+		end
+
+		# MODIFICATION by Harvard Atmospheric Chemistry Modeling Group
+		# Set tracer concentration to a small positive number if concentration is negative. Negative concentration may occur at the poles. This is an issue that should be looked into in the future. (ewl, 6/30/15)
+			
+		# TODO: Tranlate this to Julia
+		# where ( q_ptr < 0.0_fp )
+		# 	q_ptr = 1.0e-26_fp
+		# end where
+
+		# TODO: Tranlate this to Julia
+		# q_ptr => NULL()
+	end
+	
+	# MODIFICATION by Harvard Atmospheric Chemistry Modeling Group
+	# HISTORY (aka netCDF diagnostics)
+	# E/W flux of advected species [kg/s] (ccarouge 12/2/08)
+	# The unit conversion is:
+	# Mass/time = (P diff in grid box) * 100/1 * 1/g * (area of grid box area_m2) * 1/s
+	# k/g = hPa/1 * Pa/hPa * (s^2)/m * (m^2)/1 * 1/ΔT
+	
+	# TODO: Translate % to Julia
+	# if state_diag%archive_advfluxzonal
+	# 	# Zero netCDF diagnostic array
+	# 	state_diag%advfluxzonal = 0.0
+
+	# 	# Calculate fluxes for diag. (ccc, 11/20/08)
+	# 	js2g0  = max( j1p, jfirst ) # No ghosting
+	# 	jn2g0  = min( j2p, jlast  ) # No ghosting
+
+	# 	# Loop over diagnostic slots
+	# 	# NOTE: Translate parallel for below to parallel loop in Julia
+	# 	# !$OMP PARALLEL DO                           &
+	# 	# !$OMP DEFAULT( SHARED                     ) &
+	# 	# !$OMP PRIVATE( S, IQ, K, J, I, Kflip )
+	# 	# TODO: Translate % to Julia
+	# 	# for s = 1:state_diag%map_advfluxzonal%nslots
+	# 	# 	# Get the advectId from the slotId
+	# 	# 	# iq = state_diag%map_advfluxzonal%slot2id(s)
+	# 	# 	# Loop over grid boxes
+	# 	# 	for k = 1:km, j = js2g0:jn2g0, i = 1:im
+	# 	# 		# Units: [kg/s]
+	# 	# 		# But consider changing to area-independent units [kg/m2/s]
+	# 	# 		kflip = km - k + 1 # flip vert
+				
+	# 	# 		# state_diag%advfluxzonal(i,j,kflip,s) = fx(i,j,k,iq) * area_m2(j) * g0_100 / dt
+	# 	# 	end
+	# 	# end
+	# end
+
+	# MODIFICATION by Harvard Atmospheric Chemistry Modeling Group
+	# HISTORY (aka netCDF diagnostics)
+	# N/S flux of tracer [kg/s] (bdf, bmy, 9/28/04, ccarouge 12/12/08)
+	# NOTE, the unit conversion is the same as desciribed above for the E-W diagnostics.  The geometrical factor was already applied to fy in Ytp. (ccc, 4/1/09)
+	
+	
+	# TODO: Translate % to Julia
+	# if state_diag%archive_advfluxmerid
+	# 	# Zero netCDF diagnostic array
+	# 	state_diag%advfluxmerid = 0.0
+
+	# 	# NOTE: Translate parallel for below to parallel loop in Julia
+	# 	# !$OMP PARALLEL DO                           &
+	# 	# !$OMP DEFAULT( SHARED                     ) &
+	# 	# !$OMP PRIVATE( S, IQ, K, J, I, Kflip )
+	# 	for s = 1:state_diag%map_advfluxmerid%nslots
+	# 		# Get the advectId from the slotId
+	# 		iq = state_diag%map_advfluxmerid%slot2id(s)
+
+	# 		# Loop over grid boxes
+	# 		for k = 1:km, j = 1:jm, i = 1:im
+	# 			# Compute mass flux [kg/s]
+	# 			# Units: [kg/s]
+	# 			# But consider changing to area-independent units [kg/m2/s]
+	# 			kflip = km - k + 1  ! flip vert
+	# 			state_diag%advfluxmerid(i,j,kflip,s) = fy(i,j,k,iq) * area_m2(j) * g0_100 / dt
+	# 		end
+	# 	end
+	# end
+
+	# ! MODIFICATION by Harvard Atmospheric Chemistry Modeling Group
+	# ! HISTORY (aka netCDF diagnostics)
+	# Up/down flux of tracer [kg/s] (bmy, bdf, 9/28/04, ccarouge 12/2/08)
+	# The vertical transport done in qmap.  We need to find the difference in order to to interpret transport.
+	# Break up diagnostic into up & down fluxes using the surface boundary conditions.  Start from top down (really surface up for flipped TPCORE)
+	# By construction, MASSFLUP is flux into the bottom of the box. The flux at the bottom of KM (the surface box) is not zero by design. (phs, 3/4/08)
+	
+	# TODO: Translate % to Julia
+	# if State_Diag%Archive_AdvFluxVert
+	# 	# Zero netCDF diagnostic array
+	# 	State_Diag%AdvFluxVert .= 0.0
+
+	# 	# NOTE: Translate parallel for below to parallel loop in Julia
+	# 	# !$OMP PARALLEL DO                           &
+	# 	# !$OMP DEFAULT( SHARED                     ) &
+	# 	# !$OMP PRIVATE( S, IQ, K, J, I, Kflip )
+	# 	for s = 1:State_Diag%Map_AdvFluxVert%nSlots
+	# 		# Get the advectId from the modelId
+	# 		iq = State_Diag%Map_AdvFluxVert%slot2Id(S)
+
+	# 		# Loop over grid boxes
+	# 		for k = 1:km, j = 1:jm, i = 1:im
+	# 			# Ilya Stanevic (stanevic@atmosp.physics.utoronto.ca) says that using FZ for the ND26 diagnostic should be correct. He writes:
+	# 			# > To be safe you can use FZ variable from Fzppm. That is the real vertical species mass. And it is zero at the surface.
+	# 			# > To be clear, Fz is present only in the tpcore for low resolution GLOBAL model (4x5, 2x2.5). Nested model has different way to calculate vertical advection and there is no such thing as FZ. Therefore, we have to calculate the species mass difference in the box before and after vertical advection in order to get vertical mass flux.
+	# 			# > -- Bob Yantosca (28 Mar 2017)
+	# 			# Units: [kg/s]
+	# 			# But consider changing to area-independent units [kg/m2/s]
+	# 			kflip = km - k + 1  !flip vert
+	# 			state_diag%advfluxvert(i,j,kflip,s) = fz(i,j,k,iq) * area_m2(j) * g0_100 / dt
+	# 		end
+	# 	end
+	# end
+end
+
+"""
+function Average_Const_Poles averages the species
+	!  concentrations at the Poles when the Polar cap is enlarged.  It makes the
+	!  last two latitudes equal.
+
+## Arguments
+
+! !AUTHOR:
+!   Original code from Shian-Jiann Lin, DAO)
+!   John Tannahill, LLNL (jrt@llnl.gov)
+!
+! !REVISION HISTORY:
+!   05 Dec 2008 - C. Carouge  - Replaced TPCORE routines by S-J Lin and Kevin
+!                               Yeh with the TPCORE routines from GMI model.
+!                               This eliminates the polar overshoot in the
+!                               stratosphere.
+!  See https://github.com/geoschem/geos-chem for complete history
+"""
+function average_const_poles!(
+	dap,
+	dbk,
+	rel_area,
+	pctm1,
+	const1,
+	ju1_gl,
+	j2_gl,
+	i2_gl,
+	i1,
+	i2,
+	ju1,
+	j2,
+	ilo,
+	ihi,
+	julo,
+	jhi
+)::Nothing
+	# ! !INPUT PARAMETERS:
+	# !
+	# 	! Global latitude indices of the South Pole and North Pole
+	# 	INTEGER, INTENT(IN)   :: JU1_GL, J2_GL
+
+	# 	! Global max longitude index
+	# 	INTEGER, INTENT(IN)   :: I2_GL
+
+	# 	! Local min & max longitude (I), latitude (J), altitude (K) indices
+	# 	INTEGER, INTENT(IN)   :: I1,  I2
+	# 	INTEGER, INTENT(IN)   :: JU1, J2
+
+	# 	! Local min & max longitude (I) and latitude (J) indices
+	# 	INTEGER, INTENT(IN)   :: ILO,  IHI
+	# 	INTEGER, INTENT(IN)   :: JULO, JHI
+
+	# 	! Pressure difference across layer from (ai * pt) term [hPa]
+	# 	REAL(fp),  INTENT(IN)   :: dap
+
+	# 	! Difference in bi across layer - the dSigma term
+	# 	REAL(fp),  INTENT(IN)   :: dbk
+
+	# 	! Relative surface area of grid box [fraction]
+	# 	REAL(fp),  INTENT(IN)   :: rel_area(JU1:J2)
+
+	# 	! CTM surface pressure at t1 [hPa]
+	# 	REAL(fp),  INTENT(IN)   :: pctm1( ILO:IHI, JULO:JHI )
+	# !
+	# ! !INPUT/OUTPUT PARAMETERS:
+	# !
+	# 	! Species concentration, known at zone center [mixing ratio]
+	# 	REAL(fp), INTENT(INOUT) :: const1( I1:I2, JU1:J2)
+	# pressure thickness at North Pole, the psudo-density in a hydrostatic system at t1 (mb)
+	delp1n = zeros(AbstractFloat, i1:i2, (j2 - 1):j2)
+	# pressure thickness at South Pole, the psudo-density in a hydrostatic system at t1 (mb)
+	delp1s = zeros(AbstractFloat, i1:i2,  ju1:(ju1 + 1))
+
+	if ju1 == ju1_gl
+		delp1s[i1:i2, ju1:(ju1+1)] = dap + (dbk * pctm1[i1:i2, ju1:(ju1+1)])
+
+		sum1 = 0.0
+		sum2 = 0.0
+		for il = i1:i2
+			sum1 = sum1 + sum(const1[il, ju1:(ju1 + 1)] * delp1s[il, ju1:(ju1 + 1)] * rel_area[ju1:(ju1 + 1)]) / (sum(rel_area) * i2_gl)
+			sum2 = sum2 + sum(delp1s[il, ju1:(ju1 + 1)] * rel_area[ju1:(ju1 + 1)]) / (sum(rel_area) * i2_gl)
+		end
+
+		meanq = sum1 / sum2
+
+		const1[:, ju1:(ju1 + 1)] .= meanq
+	end
+	
+	if j2 == j2_gl
+		delp1n[i1:i2, (j2 - 1):j2] .= dap + (dbk * pctm1[i1:i2, (j2 - 1):j2])
+
+		sum1 = 0.0
+		sum2 = 0.0
+		for il = i1:i2
+			sum1 = sum1 + sum(const1[il, (j2 - 1):j2] * delp1n[il, (j2 - 1):j2] * rel_area[(j2 - 1):j2]) / (sum(rel_area) * i2_gl)
+			sum2 = sum2 + sum(delp1n[il, (j2 - 1):j2] * rel_area[(j2 - 1):j2]) / (sum(rel_area) * i2_gl)
+		end
+
+		meanq = sum1 / sum2
+
+		const1(:, (j2 - 1):j2) .= meanq
+	end
+end
+
+"""
+function Set_Cross_Terms sets the cross terms for
+	!  E-W horizontal advection.
+
+## Arguments
+
+! !AUTHOR:
+!   Original code from Shian-Jiann Lin, DAO)
+!   John Tannahill, LLNL (jrt@llnl.gov)
+!
+! !REVISION HISTORY:
+!   05 Dec 2008 - C. Carouge  - Replaced TPCORE routines by S-J Lin and Kevin
+!                               Yeh with the TPCORE routines from GMI model.
+!                               This eliminates the polar overshoot in the
+!                               stratosphere.
+!  See https://github.com/geoschem/geos-chem for complete history
+"""
+function set_cross_terms!(
+	crx,
+	cry,
+	ua,
+	va,
+	j1p,
+	j2p,
+	i1_gl,
+	i2_gl,
+	ju1_gl,
+	j2_gl,
+	ilo,
+	ihi,
+	julo,
+	jhi,
+	i1,
+	i2,
+	ju1,
+	j2,
+	cross
+)::Nothing
+	# ! !INPUT PARAMETERS:
+	# !
+	# 	! Global latitude indices at the edges of the S/N polar caps
+	# 	! J1P=JU1_GL+1; J2P=J2_GL-1 for a polar cap of 1 latitude band
+	# 	! J1P=JU1_GL+2; J2P=J2_GL-2 for a polar cap of 2 latitude bands
+	# 	INTEGER, INTENT(IN)   :: J1P,    J2P
+
+	# 	! Global min & max longitude (I) and latitude (J) indices
+	# 	INTEGER, INTENT(IN)   :: I1_GL,  I2_GL
+	# 	INTEGER, INTENT(IN)   :: JU1_GL, J2_GL
+
+	# 	! Local min & max longitude (I), latitude (J), altitude (K) indices
+	# 	INTEGER, INTENT(IN)   :: I1,     I2
+	# 	INTEGER, INTENT(IN)   :: JU1,    J2
+
+	# 	! Local min & max longitude (I) and latitude (J) indices
+	# 	INTEGER, INTENT(IN)   :: ILO,    IHI
+	# 	INTEGER, INTENT(IN)   :: JULO,   JHI
+
+	# 	! Courant number in E-W direction
+	# 	REAL(fp),  INTENT(IN) :: crx(ILO:IHI, JULO:JHI)
+
+	# 	! Courant number in N-S direction
+	# 	REAL(fp),  INTENT(IN) :: cry(ILO:IHI, JULO:JHI)
+
+	# 	! Logical switch.  If CROSS=T then cross-terms will be computed.
+	# 	LOGICAL, INTENT(IN) :: CROSS
+	# !
+	# ! !OUTPUT PARAMETERS:
+	# !
+	# 	! Average of Courant numbers from il and il+1
+	# 	REAL(fp), INTENT(OUT) :: ua(ILO:IHI, JULO:JHI)
+
+	# 	! Average of Courant numbers from ij and ij+1
+	# 	REAL(fp), INTENT(OUT) :: va(ILO:IHI, JULO:JHI)
+	if !cross
+		ua[:, :] .= 0.0
+		va[:, :] .= 0.0
+	else
+		for ij = j1p:j2p
+			for il = i1:(i2 - 1)
+				ua[il, ij] = 0.5 * (crx[il, ij] + crx[il + 1, ij])
+			end
+			ua[i2, ij] = 0.5 * (crx[i2, ij] + crx[1, ij])
+		end
+
+		for ij = (ju1 + 1):(j2 - 1), il = i1:i2
+			va[il, ij] = 0.5 * (cry[il, ij] + cry[il, ij + 1])
+		end
+		
+		# call do_cross_terms_pole_i2d2!(cry, va, i1_gl, i2_gl, ju1_gl, j2_gl, j1p, ilo, ihi, julo, jhi, i1, i2, ju1, j2)
+	end
+end
+
+"""
+function Calc_Vert_Mass_Flux calculates the vertical
+!  mass flux.
+
+! !AUTHOR:
+!   Original code from Shian-Jiann Lin, DAO)
+!   John Tannahill, LLNL (jrt@llnl.gov)
+!
+! !REVISION HISTORY:
+!   05 Dec 2008 - C. Carouge  - Replaced TPCORE routines by S-J Lin and Kevin
+!                               Yeh with the TPCORE routines from GMI model.
+!                               This eliminates the polar overshoot in the
+!                               stratosphere.
+!  See https://github.com/geoschem/geos-chem for complete history
+"""
+function calc_vert_mass_flux!(
+	dbk,
+	dps_ctm,
+	dpi,
+	wz,
+	i1,
+	i2,
+	ju1,
+	j2,
+	k1,
+	k2
+)::Nothing
+	# ! !INPUT PARAMETERS:
+	# !
+	# 	! Local min & max longitude (I), latitude (J), altitude (K) indices
+	# 	INTEGER, INTENT(IN)   :: I1,  I2
+	# 	INTEGER, INTENT(IN)   :: JU1, J2
+	# 	INTEGER, INTENT(IN)   :: K1,  K2
+
+	# 	! Difference in bi across layer - the dSigma term
+	# 	REAL(fp),  INTENT(IN)  :: dbk(K1:K2)
+
+	# 	! CTM surface pressure tendency; sum over vertical of dpi
+	# 	! calculated from original mass fluxes [hPa]
+	# 	REAL(fp),  INTENT(IN)  :: dps_ctm(I1:I2, JU1:J2)
+
+	# 	! Divergence at a grid point; used to calculate vertical motion [mb]
+	# 	REAL(fp),  INTENT(IN)  :: dpi(I1:I2, JU1:J2, K1:K2)
+	# !
+	# ! !OUTPUT PARAMETERS:
+	# !
+	# 	! Large scale mass flux (per time step tdt) in the vertical
+	# 	! direction as diagnosed from the hydrostatic relationship [hPa]
+	# 	REAL(fp), INTENT(OUT) :: wz(I1:I2, JU1:J2, K1:K2)
+	# Compute vertical mass flux from mass conservation.
+
+	# NOTE: Translate parallel for below to parallel loop in Julia
+	# !$OMP PARALLEL DO       &
+	# !$OMP DEFAULT( SHARED ) &
+	# !$OMP PRIVATE( IJ, IL )
+	for ij = ju1:j2, il = i1:i2
+		wz[il, ij, k1] = dpi[il, ij, k1] - (dbk[k1] * dps_ctm[il, ij])
+
+		wz[il, ij, k2] = 0.0
+	end
+
+	for ik = (k1 + 1):(k2 - 1)
+		# NOTE: Translate parallel for below to parallel loop in Julia
+		# !$OMP PARALLEL DO       &
+		# !$OMP DEFAULT( SHARED ) &
+		# !$OMP PRIVATE( IJ, IL )
+		for ij = ju1:j2, il = i1:i2
+			wz[il, ij, ik] = wz[il, ij, ik - 1] + dpi[il, ij, ik] - (dbk[ik] * dps_ctm[il, ij])
+		end
+	end
+end
+
+"""
+function Set_Jn_Js determines Jn and Js, by looking
 	!  where Courant number is > 1.
 
 ! !AUTHOR:
@@ -77,7 +1134,7 @@ function set_jn_js!(
 	jst = max(ju1, j1p)
 	jend = min(j2, js0)
 
-	@label kloop1
+	@label ikloop1
 	for ik = k1:k2
 		js[ik] = j1p
 
@@ -108,7 +1165,7 @@ function set_jn_js!(
 end
 
 """
-function Calc\_Advec\_Cross\_Terms calculates the advective
+function Calc_Advec_Cross_Terms calculates the advective
 	!  cross terms.
 
 ## Arguments
@@ -396,7 +1453,7 @@ function qckxyz!(
 		end
 	end
 
-	# We don't want to replace zero values by 1e-30. (ccc, 11/20/08)
+	# We don"t want to replace zero values by 1e-30. (ccc, 11/20/08)
 	#   where ((dq1(i1:i2,j1p:j2p,:) < 1.0d-30)) &
 	#           dq1(i1:i2,j1p:j2p,:) = 1.0d-30
 end
@@ -477,7 +1534,7 @@ function set_lmts!(
 end
 
 """
-! !DESCRIPTION: function Set\_Press\_Terms sets the pressure terms:
+! !DESCRIPTION: function Set_Press_Terms sets the pressure terms:
 !  DELP1, DELPM, PU.
 
 ## Arguments
@@ -2349,7 +3406,7 @@ end
 """
 function fzppm is the 1D "outer" flux form operator based on the Piecewise Parabolic Method (PPM; see also Lin and Rood 1996) for computing the fluxes in the vertical direction.
 
-fzppm was modified by S. - J. Lin, 12/14/98, to allow the use of the KORD=7 (klmt=4) option. KORD=7 enforces the 2nd monotonicity constraint of Huynh (1996). Note that in Huynh's original scheme, two constraints are necessary for the preservation of monotonicity. To use Huynh's algorithm, it was modified as follows. The original PPM is still used to obtain the first guesses for the cell edges, and as such Huynh's 1st constraint is no longer needed. Huynh's median function is also replaced by a simpler yet functionally equivalent in - line algorithm.
+fzppm was modified by S. - J. Lin, 12/14/98, to allow the use of the KORD=7 (klmt=4) option. KORD=7 enforces the 2nd monotonicity constraint of Huynh (1996). Note that in Huynh"s original scheme, two constraints are necessary for the preservation of monotonicity. To use Huynh"s algorithm, it was modified as follows. The original PPM is still used to obtain the first guesses for the cell edges, and as such Huynh"s 1st constraint is no longer needed. Huynh"s median function is also replaced by a simpler yet functionally equivalent in - line algorithm.
 
 ## Arguments
 - `klmt::Integer` - IN
@@ -2556,7 +3613,7 @@ function fzppm!(
     # Interior depending on klmt.
 
     if klmt == 4
-      # KORD=7, Huynh's 2nd constraint.
+      # KORD=7, Huynh"s 2nd constraint.
 
       for ik = k1p1:k2m1, il = i1:i2
         dca[il, ik] = dpi[il, ij, ik] - dpi[il, ij, ik - 1]
@@ -2683,7 +3740,7 @@ function average_press_poles!(
 )::Nothing
   # Compute the sum of surface area
 
-  # TODO: `dble` is not an excisting function, it's probably imported from somewhere else
+  # TODO: `dble` is not an excisting function, it"s probably imported from somewhere else
 
   rel_area = zeros(AbstractFloat, ju1:j2)
   # TODO: looks like a map
