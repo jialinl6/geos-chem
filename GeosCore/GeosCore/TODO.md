@@ -7,21 +7,21 @@ This involves, initial translation, and documentation. 100% match in functionali
 - [ ] `./tpcore_fvdas_mod.jl`
   - [ ] `init_tpcore!`
   - [ ] `tpcore_fvdas`
-  - [ ] `average_const_poles!`
-  - [ ] `set_cross_terms!`
-  - [ ] `calc_vert_mass_flux!`
-  - [ ] `set_jn_js!`
-  - [ ] `calc_advec_cross_terms!`
-  - [ ] `qckxyz!`
-  - [ ] `set_lmts!`
-  - [ ] `set_press_terms!`
-  - [ ] `calc_courant!`
-  - [ ] `calc_divergence!`
-  - [ ] `do_divergence_pole_sum!`
-  - [ ] `do_cross_terms_pole_i2d2!`
-  - [ ] `xadv_dao2!`
-  - [ ] `yadv_dao2!`
-  - [ ] `do_yadv_pole_i2d2!`
+  - [x] `average_const_poles!`
+  - [x] `set_cross_terms!`
+  - [x] `calc_vert_mass_flux!`
+  - [x] `set_jn_js!`
+  - [x] `calc_advec_cross_terms!`
+  - [x] `qckxyz!`
+  - [x] `set_lmts!`
+  - [x] `set_press_terms!`
+  - [x] `calc_courant!`
+  - [x] `calc_divergence!`
+  - [x] `do_divergence_pole_sum!`
+  - [x] `do_cross_terms_pole_i2d2!`
+  - [x] `xadv_dao2!`
+  - [x] `yadv_dao2!`
+  - [x] `do_yadv_pole_i2d2!`
   - [x] `do_yadv_pole_sum!`
   - [x] `xtp!`
   - [x] `xmist!`

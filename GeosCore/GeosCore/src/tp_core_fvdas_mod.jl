@@ -720,14 +720,14 @@ end
 Averages the species concentrations at the Poles when the Polar cap is enlarged. It makes the last two latitudes equal.
 
 ## Arguments
-- `dap::AbstractFloat` - IN
-- `dbk::Integer` - IN
-- `rel_area::Array{AbstractFloat}` - IN
-- `pctm1::Matrix{AbstractFloat}` - IN
-- `const1::Matrix{AbstractFloat}` - INOUT
-- `ju1_gl::Integer` - IN
-- `j2_gl::Integer` - IN
-- `i2_gl::Integer` - IN
+- `dap::AbstractFloat` - IN - Pressure difference across layer from (ai * pt) term [hPa]
+- `dbk::Integer` - IN - Difference in bi across layer - the dSigma term
+- `rel_area::Array{AbstractFloat}` - IN - (ju1:j2) - 
+- `pctm1::Matrix{AbstractFloat}` - IN - (ilo:ihi, julo:jhi) - 
+- `const1::Matrix{AbstractFloat}` - INOUT - (i1:i2, ju1:j2) - 
+- `ju1_gl::Integer` - IN - Global min latitude index
+- `j2_gl::Integer` - IN - Global max latitude index
+- `i2_gl::Integer` - IN - Global max longitude index
 - `i1::Integer` - IN - Local min longitude index
 - `i2::Integer` - IN - Local max longitude index
 - `ju1::Integer` - IN - Local min latitude index
@@ -802,16 +802,16 @@ end
 Sets the cross terms for E-W horizontal advection.
 
 ## Arguments
-- `crx::Matrix{AbstractFloat}` - IN
-- `cry::Matrix{AbstractFloat}` - IN
-- `ua::Matrix{AbstractFloat}` - OUT
-- `va::Matrix{AbstractFloat}` - OUT
-- `j1p::Integer` - IN
-- `j2p::Integer` - IN
-- `i1_gl::Integer` - IN
-- `i2_gl::Integer` - IN
-- `ju1_gl::Integer` - IN
-- `j2_gl::Integer` - IN
+- `cry::Matrix{AbstractFloat}` - IN - (ilo:ihi, julo:jhi) - Courant number in E-W direction
+- `crx::Matrix{AbstractFloat}` - IN - (ilo:ihi, julo:jhi) - Courant number in N-S direction
+- `ua::Matrix{AbstractFloat}` - OUT - (ilo:ihi, julo:jhi) - Average of Courant numbers from il and il+1
+- `va::Matrix{AbstractFloat}` - OUT - (ilo:ihi, julo:jhi) - Average of Courant numbers from ij and ij+1
+- `j1p::Integer` - IN - Global latitude indices at the edges of the S/N polar caps; j1p=ju1_gl+1; j2p=j2_gl-1 for a polar cap of 1 latitude band
+- `j2p::Integer` - IN - Global latitude indices at the edges of the S/N polar caps; j1p=ju1_gl+2; j2p=j2_gl-2 for a polar cap of 2 latitude band
+- `i1_gl::Integer` - IN - Global min longitude index
+- `i2_gl::Integer` - IN - Global max longitude index
+- `ju1_gl::Integer` - IN - Global min latitude index
+- `j2_gl::Integer` - IN - Global max latitude index
 - `ilo::Integer` - IN - Local min longitude index
 - `ihi::Integer` - IN - Local max longitude index
 - `julo::Integer` - IN - Local min latitude index
@@ -820,7 +820,7 @@ Sets the cross terms for E-W horizontal advection.
 - `i2::Integer` - IN - Local max longitude index
 - `ju1::Integer` - IN - Local min latitude index
 - `j2::Integer` - IN - Local max latitude index
-- `cross::Bool` - IN
+- `cross::Bool` - IN - Logical switch.  If CROSS=T then cross-terms will be computed.
 
 ## Author
 Original code from Shian-Jiann Lin, DAO).
@@ -874,16 +874,16 @@ end
 Calculates the vertical mass flux.
 
 ## Arguments
-- `dbk::Array{AbstractFloat}` - IN
-- `dps_ctm::Matrix{AbstractFloat}` - IN
-- `dpi::Array{AbstractFloat, 3}` - IN
-- `wz::Array{AbstractFloat, 3}` - OUT
+- `dbk::Array{AbstractFloat}` - IN - (k1:k2) - Difference in bi across layer - the dSigma term
+- `dps_ctm::Matrix{AbstractFloat}` - IN - (i1:i2, ju1:j2) -  CTM surface pressure tendency; sum over vertical of dpi calculated from original mass fluxes [hPa]
+- `dpi::Array{AbstractFloat, 3}` - IN - (i1:i2, ju1:j2, k1:k2) - Divergence at a grid point; used to calculate vertical motion [mb]
+- `wz::Array{AbstractFloat, 3}` - OUT - (i1:i2, ju1:j2, k1:k2) - Large scale mass flux (per time step tdt) in the vertical direction as diagnosed from the hydrostatic relationship [hPa]
 - `i1::Integer` - IN - Local min longitude index
 - `i2::Integer` - IN - Local max longitude index
 - `ju1::Integer` - IN - Local min latitude index
 - `j2::Integer` - IN - Local max latitude index
-- `k1::Integer` - IN
-- `k2::Integer` - IN
+- `k1::Integer` - IN - Local min altitude index
+- `k2::Integer` - IN - Local max altitude index
 
 ## Author
 Original code from Shian-Jiann Lin, DAO).
@@ -931,23 +931,23 @@ end
 Determines Jn and Js, by looking where Courant number is > 1.
 
 ## Arguments
-- `jn::Array{AbstractFloat}` - OUT
-- `js::Array{AbstractFloat}` - OUT
-- `crx::Array{AbstractFloat, 3}` - IN
+- `jn::Array{AbstractFloat}` - OUT - (k1:k2) - Northward of latitude index = jn; Courant numbers could be > 1, so use the flux-form semi-Lagrangian scheme
+- `js::Array{AbstractFloat}` - OUT - (k1:k2) - Southward of latitude index = js; Courant numbers could be > 1, so use the flux-form semi-Lagrangian scheme
+- `crx::Array{AbstractFloat, 3}` - IN - (ilo:ihi, julo:jhi, k1:k2) - Courant number in E-W direction
 - `ilo::Integer` - IN - Local min longitude index
 - `ihi::Integer` - IN - Local max longitude index
 - `julo::Integer` - IN - Local min latitude index
 - `jhi::Integer` - IN - Local max latitude index
-- `ju1_gl::Integer` - IN
-- `j2_gl::Integer` - IN
-- `j1p::Integer` - IN
-- `j2p::Integer` - IN
+- `ju1_gl::Integer` - IN - Global min latitude index
+- `j2_gl::Integer` - IN - Global max latitude index
+- `j1p::Integer` - IN - Global latitude indices at the edges of the S/N polar caps; j1p=ju1_gl+1; j2p=j2_gl-1 for a polar cap of 1 latitude band
+- `j2p::Integer` - IN - Global latitude indices at the edges of the S/N polar caps; j1p=ju1_gl+2; j2p=j2_gl-2 for a polar cap of 2 latitude band
 - `i1::Integer` - IN - Local min longitude index
 - `i2::Integer` - IN - Local max longitude index
 - `ju1::Integer` - IN - Local min latitude index
 - `j2::Integer` - IN - Local max latitude index
-- `k1::Integer` - IN
-- `k2::Integer` - IN
+- `k1::Integer` - IN - Local min altitude index
+- `k2::Integer` - IN - Local max altitude index
 
 ## Author
 Original code from Shian-Jiann Lin, DAO).
@@ -1018,18 +1018,18 @@ end
 Calculates the advective cross terms.
 
 ## Arguments
-- `jn::Integer` - IN
-- `js::Integer` - IN
-- `qq1::Matrix{AbstractFloat}` - IN
-- `qqu::Matrix{AbstractFloat}` - OUT
-- `qqv::Matrix{AbstractFloat}` - OUT
-- `ua::Matrix{AbstractFloat}` - IN
-- `va::Matrix{AbstractFloat}` - IN
-- `j1p::Integer` - IN
-- `j2p::Integer` - IN
-- `i2_gl::Integer` - IN
-- `ju1_gl::Integer` - IN
-- `j2_gl::Integer` - IN
+- `jn::Integer` - IN - Northward of latitude index = jn, Courant numbers could be > 1, so use the flux-form semi-Lagrangian scheme
+- `js::Integer` - IN - Southward of latitude index = js, Courant numbers could be > 1, so use the flux-form semi-Lagrangian scheme
+- `qq1::Matrix{AbstractFloat}` - IN - (ilo:ihi, julo:jhi) - Species concentration (mixing ratio)
+- `qqu::Matrix{AbstractFloat}` - OUT - (ilo:ihi, julo:jhi) - Concentration contribution from E-W advection [mixing ratio]
+- `qqv::Matrix{AbstractFloat}` - OUT - (ilo:ihi, julo:jhi) - concentration contribution from N-S advection [mixing ratio]
+- `ua::Matrix{AbstractFloat}` - IN - (ilo:ihi, julo:jhi) - Average of Courant numbers from il and il+1
+- `va::Matrix{AbstractFloat}` - IN - (ilo:ihi, julo:jhi) - Average of Courant numbers from ij and ij+1
+- `j1p::Integer` - IN - Global latitude indices at the edges of the S/N polar caps; j1p=ju1_gl+1; j2p=j2_gl-1 for a polar cap of 1 latitude band
+- `j2p::Integer` - IN - Global latitude indices at the edges of the S/N polar caps; j1p=ju1_gl+2; j2p=j2_gl-2 for a polar cap of 2 latitude band
+- `i2_gl::Integer` - IN - Global max longitude index
+- `ju1_gl::Integer` - IN - Global min latitude index
+- `j2_gl::Integer` - IN - Global max latitude index
 - `ilo::Integer` - IN - Local min longitude index
 - `ihi::Integer` - IN - Local max longitude index
 - `julo::Integer` - IN - Local min latitude index
@@ -1038,7 +1038,7 @@ Calculates the advective cross terms.
 - `i2::Integer` - IN - Local max longitude index
 - `ju1::Integer` - IN - Local min latitude index
 - `j2::Integer` - IN - Local max latitude index
-- `cross::Bool` - IN
+- `cross::Bool` - IN - Logical switch: If CROSS=T then cross-terms are being computed
 
 ## Author
 Original code from Shian-Jiann Lin, DAO).
@@ -1142,11 +1142,11 @@ end
 Checks for "filling".
 	
 ## Arguments
-- `dq1::Array{AbstractFloat, 3}` - INOUT
-- `j1p::Integer` - IN
-- `j2p::Integer` - IN
-- `ju1_gl::Integer` - IN
-- `j2_gl::Integer` - IN
+- `dq1::Array{AbstractFloat, 3}` - INOUT - (ilo:ihi, julo:jhi, k1:k2) - Species density [hPa]
+- `j1p::Integer` - IN - Global latitude indices at the edges of the S/N polar caps; j1p=ju1_gl+1; j2p=j2_gl-1 for a polar cap of 1 latitude band
+- `j2p::Integer` - IN - Global latitude indices at the edges of the S/N polar caps; j1p=ju1_gl+2; j2p=j2_gl-2 for a polar cap of 2 latitude band
+- `ju1_gl::Integer` - IN - Global min latitude index
+- `j2_gl::Integer` - IN - Global max latitude index
 - `ilo::Integer` - IN - Local min longitude index
 - `ihi::Integer` - IN - Local max longitude index
 - `julo::Integer` - IN - Local min latitude index
@@ -1155,8 +1155,8 @@ Checks for "filling".
 - `i2::Integer` - IN - Local max longitude index
 - `ju1::Integer` - IN - Local min latitude index
 - `j2::Integer` - IN - Local max latitude index
-- `k1::Integer` - IN
-- `k2::Integer` - IN
+- `k1::Integer` - IN - Local min altitude index
+- `k2::Integer` - IN - Local max altitude index
 
 ## Author
 Original code from Shian-Jiann Lin, DAO).
@@ -1266,17 +1266,17 @@ function qckxyz!(
 end
 
 """
-Sets ilmt, jlmt, klmt.
+Sets ilmt, jlmt, klmt. (See REMARKS section of routine Tpcore_FvDas for more info)
 
 ## Arguments
-- `ilmt::Integer` - OUT
-- `jlmt::Integer` - OUT
-- `klmt::Integer` - OUT
-- `i2_gl::Integer` - IN
-- `j2_gl::Integer` - IN
-- `iord::Integer` - IN
-- `jord::Integer` - IN
-- `kord::Integer` - IN
+- `ilmt::Integer` - OUT - Controls various options in E-W advection
+- `jlmt::Integer` - OUT - Controls various options in N-S advection
+- `klmt::Integer` - OUT - Controls various options in vertical advection
+- `i2_gl::Integer` - IN - Global max latitude index
+- `j2_gl::Integer` - IN - Global max longitude index
+- `iord::Integer` - IN - Flag to denote E-W transport schemes
+- `jord::Integer` - IN - Flag to denote N-S transport schemes
+- `kord::Integer` - IN - Flag to denote vertical transport schemes
 
 ## Author
 Original code from Shian-Jiann Lin, DAO).
@@ -1330,6 +1330,25 @@ end
 Sets the pressure terms: delp1, delpm, pu.
 
 ## Arguments
+- `dap::AbstractFloat` - Pressure difference across layer from (ai * pt) term [hPa]
+- `dbk::AbstractFloat` - Difference in bi across layer - the dSigma term
+- `pres1::Matrix{AbstractFloat}` - (ilo:ihi, julo:jhi) - Surface pressure at t1 [hPa]
+- `pres2::Matrix{AbstractFloat}` - (ilo:ihi, julo:jhi) - Surface pressure at t1+tdt [hPa]
+- `delp1::Matrix{AbstractFloat}` - (ilo:ihi, julo:jhi) - Pressure thickness, the pseudo-density in a hydrostatic system at t1 [hPa]
+- `delpm::Matrix{AbstractFloat}` - (ilo:ihi, julo:jhi) - Pressure thickness, the pseudo-density in a hydrostatic system at t1+tdt/2 (approximate) [hPa]
+- `pu::Matrix{AbstractFloat}` - (ilo:ihi, julo:jhi) - Pressure at edges in "u" [hPa]
+- `ju1_gl::Integer` - Global min latitude index
+- `j2_gl::Integer` - Global max latitude index
+- `ilo::Integer` - IN - Local min longitude index
+- `ihi::Integer` - IN - Local max longitude index
+- `julo::Integer` - IN - Local min latitude index
+- `jhi::Integer` - IN - Local max latitude index
+- `j1p::Integer` - IN - Global latitude indices at the edges of the S/N polar caps; j1p=ju1_gl+1; j2p=j2_gl-1 for a polar cap of 1 latitude band
+- `j2p::Integer` - IN - Global latitude indices at the edges of the S/N polar caps; j1p=ju1_gl+2; j2p=j2_gl-2 for a polar cap of 2 latitude band
+- `i1::Integer` - IN - Local min longitude index
+- `i2::Integer` - IN - Local max longitude index
+- `ju1::Integer` - IN - Local min latitude index
+- `j2::Integer` - IN - Local max latitude index
 
 ## Author
 Original code from Shian-Jiann Lin, DAO).
@@ -1375,17 +1394,17 @@ end
 Calculates courant numbers from the horizontal mass fluxes.
 
 ## Arguments
-- `cose::Array{AbstractFloat}` - IN
-- `delpm::Matrix{AbstractFloat}` - IN
-- `pu::Matrix{AbstractFloat}` - IN
-- `xmass::Matrix{AbstractFloat}` - IN
-- `ymass::Matrix{AbstractFloat}` - IN
-- `crx::Matrix{AbstractFloat}` - OUT
-- `cry::Matrix{AbstractFloat}` - OUT
-- `j1p::Integer` - IN
-- `j2p::Integer` - IN
-- `ju1_gl::Integer` - IN
-- `j2_gl::Integer` - IN
+- `cose::Array{AbstractFloat}` - IN - (ju1_gl:j2_gl) - Cosine of grid box edges
+- `delpm::Matrix{AbstractFloat}` - IN - (ju1_gl:j2_gl) - Pressure thickness, the pseudo-density in a hydrostatic system at t1+tdt/2 (approximate) (mb)
+- `pu::Matrix{AbstractFloat}` - IN - (ju1_gl:j2_gl) - pressure at edges in "u"  (mb)
+- `xmass::Matrix{AbstractFloat}` - IN - (ju1_gl:j2_gl) - horizontal mass flux in E-W directions [hPa]
+- `ymass::Matrix{AbstractFloat}` - IN - (ju1_gl:j2_gl) - horizontal mass flux in N-S directions [hPa]
+- `crx::Matrix{AbstractFloat}` - OUT - (ju1_gl:j2_gl) - Courant numbers in E-W directions
+- `cry::Matrix{AbstractFloat}` - OUT - (ju1_gl:j2_gl) - Courant numbers in N-S directions
+- `j1p::Integer` - IN - Global latitude indices at the edges of the S/N polar caps; j1p=ju1_gl+1; j2p=j2_gl-1 for a polar cap of 1 latitude band
+- `j2p::Integer` - IN - Global latitude indices at the edges of the S/N polar caps; j1p=ju1_gl+2; j2p=j2_gl-2 for a polar cap of 2 latitude band
+- `ju1_gl::Integer` - IN - Local min latitude index
+- `j2_gl::Integer` - IN - Local max latitude index
 - `ilo::Integer` - IN - Local min longitude index
 - `ihi::Integer` - IN - Local max longitude index
 - `julo::Integer` - IN - Local min latitude index
@@ -1441,18 +1460,19 @@ end
 Calculates the divergence.
 	
 ## Arguments
-- `do_reduction::Bool` - IN
-- `geofac_pc::AbstractFloat` - IN
-- `geofac::Array{AbstractFloat}` - IN
-- `dpi::Matrix{AbstractFloat}` - OUT
-- `xmass::Matrix{AbstractFloat}` - IN
-- `ymass::Matrix{AbstractFloat}` - IN
-- `j1p::Integer` - IN
-- `j2p::Integer` - IN
-- `i1_gl::Integer` - IN
-- `i2_gl::Integer` - IN
-- `ju1_gl::Integer` - IN
-- `j2_gl::Integer` - IN
+- `do_reduction::Bool` - IN - Set to F if called on root core or T if called by secondary cores
+	- (NOTE: This is only for MPI parallelization, for OPENMP it should be F)
+- `geofac_pc::AbstractFloat` - IN - Special geometrical factor (geofac) for Polar cap
+- `geofac::Array{AbstractFloat}` - IN - Geometrical factor for meridional advection; geofac uses correct spherical geometry, and replaces acosp as the meridional geometrical factor in TPCORE
+- `dpi::Matrix{AbstractFloat}` - OUT - Divergence at a grid point; used to calculate vertical motion [hPa]
+- `xmass::Matrix{AbstractFloat}` - IN - Horizontal mass flux in E/W directions [hPa]
+- `ymass::Matrix{AbstractFloat}` - IN - Horizontal mass flux in N/S directions [hPa]
+- `j1p::Integer` - IN - Global latitude indices at the edges of the S/N polar caps; j1p=ju1_gl+1; j2p=j2_gl-1 for a polar cap of 1 latitude band
+- `j2p::Integer` - IN - Global latitude indices at the edges of the S/N polar caps; j1p=ju1_gl+2; j2p=j2_gl-2 for a polar cap of 2 latitude band
+- `i1_gl::Integer` - IN - Global min longitude index
+- `i2_gl::Integer` - IN - Global max longitude index
+- `ju1_gl::Integer` - IN - Global min latitude index
+- `j2_gl::Integer` - IN - Global max latitude index
 - `ilo::Integer` - IN - Local min longitude index
 - `ihi::Integer` - IN - Local max longitude index
 - `julo::Integer` - IN - Local min latitude index
@@ -1520,16 +1540,17 @@ end
 Sets the divergence at the Poles.
 
 ## Arguments
-- `do_reduction::Bool` - IN
-- `geofac_pc::AbstractFloat` - IN
-- `dpi::Matrix{AbstractFloat}` - OUT
-- `ymass::Matrix{AbstractFloat}` - IN
-- `i1_gl::Integer` - IN
-- `i2_gl::Integer` - IN
-- `j1p::Integer` - IN
-- `j2p::Integer` - IN
-- `ju1_gl::Integer` - IN
-- `j2_gl::Integer` - IN
+- `do_reduction::Bool` - IN - Set to T if called on root core or F if called by secondary cores
+	- NOTE: This seems not to be used here....)
+- `geofac_pc::AbstractFloat` - IN - Special geometrical factor (geofac) for Polar cap
+- `dpi::Matrix{AbstractFloat}` - OUT - (i1:i2, ju1:j2) - Divergence at a grid point; used to calculate vertical motion [hPa]
+- `ymass::Matrix{AbstractFloat}` - IN - (ilo:ihi, julo:jhi) - Horizontal mass flux in N-S direction [hPa]
+- `i1_gl::Integer` - IN - Global min longitude index
+- `i2_gl::Integer` - IN - Global max longitude index
+- `j1p::Integer` - IN - Global latitude indices at the edges of the S/N polar caps; j1p=ju1_gl+1; j2p=j2_gl-1 for a polar cap of 1 latitude band
+- `j2p::Integer` - IN - Global latitude indices at the edges of the S/N polar caps; j1p=ju1_gl+2; j2p=j2_gl-2 for a polar cap of 2 latitude band
+- `ju1_gl::Integer` - IN - Global min latitude index
+- `j2_gl::Integer` - IN - Global max latitude index
 - `ilo::Integer` - IN - Local min longitude index
 - `ihi::Integer` - IN - Local max longitude index
 - `julo::Integer` - IN - Local min latitude index
@@ -1600,13 +1621,13 @@ end
 Sets "va" at the Poles.
 
 ## Arguments
-- `cry::Integer` - IN
-- `va::Integer` - OUT
-- `i1_gl::Integer` - IN
-- `i2_gl::Integer` - IN
-- `ju1_gl::Integer` - IN
-- `j2_gl::Integer` - IN
-- `j1p::Integer` - IN
+- `cry::Matrix{AbstractFloat}` - IN - (ilo:ihi, julo:jhi) - Courant number in N-S direction
+- `va::Matrix{AbstractFloat}` - OUT - (ilo:ihi, julo:jhi) - Average of Courant numbers from ij and ij+1
+- `i1_gl::Integer` - IN - Global min longitude index
+- `i2_gl::Integer` - IN - Global max longitude index
+- `ju1_gl::Integer` - IN - Global min latitude index
+- `j2_gl::Integer` - IN - Global max latitude index
+- `j1p::Integer` - IN - Global latitude indices at the edge of the South polar cap; j1p=ju1_gl+1 for a polar cap of 1 latitude band
 - `ilo::Integer` - IN - Local min longitude index
 - `ihi::Integer` - IN - Local max longitude index
 - `julo::Integer` - IN - Local min latitude index
@@ -1666,19 +1687,21 @@ The advective form E-W operator for computing the adx (E-W) cross term.
 
 ## Arguments
 - `iad::Integer` - IN
-- `jn::Integer` - IN
-- `js::Integer` - IN
-- `adx::Matrix{AbstractFloat}` - OUT
-- `qqv::Matrix{AbstractFloat}` - IN
-- `ua::Matrix{AbstractFloat}` - IN
-- `ilo::Integer` - IN - Local min longitude index
+	- if iad = 1, use 1st order accurate scheme
+	- if iad = 2, use 2nd order accurate scheme
+- `jn::Integer` - IN - Northward of latitude index = jn, Courant numbers could be > 1, so use the flux-form semi-Lagrangian scheme
+- `js::Integer` - IN - southward of latitude index = js, Courant numbers could be > 1, so use the flux-form semi-Lagrangian scheme
+- `adx::Matrix{AbstractFloat}` - OUT - (ilo:ihi, julo:jhi) - Cross term due to E-W advection [mixing ratio]
+- `qqv::Matrix{AbstractFloat}` - IN - (ilo:ihi, julo:jhi) - Concentration contribution from N-S advection [mixing ratio]
+- `ua::Matrix{AbstractFloat}` - IN - (ilo:ihi, julo:jhi) - Average of Courant numbers from il and il+1
 - `ihi::Integer` - IN - Local max longitude index
+- `ilo::Integer` - IN - Local min longitude index
 - `julo::Integer` - IN - Local min latitude index
 - `jhi::Integer` - IN - Local max latitude index
-- `ju1_gl::Integer` - IN
-- `j2_gl::Integer` - IN
-- `j1p::Integer` - IN
-- `j2p::Integer` - IN
+- `ju1_gl::Integer` - IN - Local min latitude index
+- `j2_gl::Integer` - IN - Local max latitude index
+- `j1p::Integer` - IN - Global latitude indices at the edges of the S/N polar caps; j1p=ju1_gl+1; j2p=j2_gl-1 for a polar cap of 1 latitude band
+- `j2p::Integer` - IN - Global latitude indices at the edges of the S/N polar caps; j1p=ju1_gl+2; j2p=j2_gl-2 for a polar cap of 2 latitude band
 - `i1::Integer` - IN - Local min longitude index
 - `i2::Integer` - IN - Local max longitude index
 - `ju1::Integer` - IN - Local min latitude index
@@ -1823,15 +1846,17 @@ The advective form N-S operator for computing the ady (N-S) cross term.
 
 ## Arguments
 - `iad::Integer` - IN
-- `ady::Matrix{AbstractFloat}` - OUT
-- `qqu::Matrix{AbstractFloat}` - IN
-- `va::Matrix{AbstractFloat}` - IN
-- `i1_gl::Integer` - IN
-- `i2_gl::Integer` - IN
-- `ju1_gl::Integer` - IN
-- `j2_gl::Integer` - IN
-- `j1p::Integer` - IN
-- `j2p::Integer` - IN
+	- If iad = 1, use 1st order accurate scheme
+	- If iad = 2, use 2nd order accurate scheme
+- `ady::Matrix{AbstractFloat}` - OUT - (ilo:ihi, julo:jhi) - Cross term due to N-S advection (mixing ratio)
+- `qqu::Matrix{AbstractFloat}` - IN - (ilo:ihi, julo:jhi) - Concentration contribution from E-W advection [mixing ratio]
+- `va::Matrix{AbstractFloat}` - IN - (ilo:ihi, julo:jhi) - Average of Courant numbers from ij and ij+1
+- `i1_gl::Integer` - IN - Global min longitude index
+- `i2_gl::Integer` - IN - Global max longitude index
+- `ju1_gl::Integer` - IN - Global min latitude index
+- `j2_gl::Integer` - IN - Global max latitude index
+- `j1p::Integer` - IN - Global latitude indices at the edges of the S/N polar caps; j1p=ju1_gl+1; j2p=j2_gl-1 for a polar cap of 1 latitude band
+- `j2p::Integer` - IN - Global latitude indices at the edges of the S/N polar caps; j1p=ju1_gl+2; j2p=j2_gl-2 for a polar cap of 2 latitude band
 - `ilo::Integer` - IN - Local min longitude index
 - `ihi::Integer` - IN - Local max longitude index
 - `julo::Integer` - IN - Local min latitude index
@@ -1918,13 +1943,13 @@ end
 Sets "qquwk" at the Poles.
 
 ## Arguments
-- `qqu::Integer` - IN
-- `qquwk::Integer` - IN
-- `i1_gl::Integer` - IN
-- `i2_gl::Integer` - IN
-- `ju1_gl::Integer` - IN
-- `j2_gl::Integer` - IN
-- `j1p::Integer` - IN
+- `qqu::Integer` - IN - (ilo:ihi, julo:jhi) - concentration contribution from E-W advection [mixing ratio]
+- `qquwk::Integer` - IN - (ilo:ihi, julo-2:jhi+2) - qqu working array [mixing ratio]
+- `i1_gl::Integer` - IN - Global min longitude index
+- `i2_gl::Integer` - IN - Global max longitude index
+- `ju1_gl::Integer` - IN - Global min latitude index
+- `j2_gl::Integer` - IN - Global max latitude index
+- `j1p::Integer` - IN - Global latitude indices at the edges of the South polar cap. j1p=ju1_gl+1 for a polar cap of 1 latitude band
 - `ilo::Integer` - IN - Local min longitude index
 - `ihi::Integer` - IN - Local max longitude index
 - `julo::Integer` - IN - Local min latitude index
