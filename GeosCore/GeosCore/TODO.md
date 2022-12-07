@@ -4,7 +4,7 @@
 
 This involves, initial translation, and documentation. 100% match in functionality minus CPU flags & macros & compiler flags.
 
-- [ ] `./tpcore_fvdas_mod.jl`
+- [ ] `./src/tpcore_fvdas_mod.jl`
   - [ ] `init_tpcore!`
   - [ ] `tpcore_fvdas`
   - [x] `average_const_poles!`
@@ -36,7 +36,7 @@ This involves, initial translation, and documentation. 100% match in functionali
   - [x] `do_ytp_pole_sum!`
   - [x] `fzppm!`
   - [x] `average_press_poles!`
-- [ ] `./tpcore_window_mod.jl`
-- [ ] `./transport_mod.jl`
-- [ ] `./drydep_mod.jl`
-- [ ] `./aerosol_mod.jl`
+- [ ] `./src/tpcore_window_mod.jl`
+- [ ] `./src/transport_mod.jl`
+- [ ] `./src/drydep_mod.jl`
+- [ ] `./src/aerosol_mod.jl`

@@ -1,0 +1,83 @@
+# TODO
+
+## Initial transliteration
+
+This involves, initial translation, and documentation. 100% match in functionality minus CPU flags & macros & compiler flags.
+
+- [ ] `./src/registry_mod.jl`
+  - [x] `RegItem`
+  - [x] `MetaRegItem`
+  - [ ] `Registry_AddField!()`
+  - [ ] `Registry_Lookup!()`
+  - [ ] `Registry_Print!()`
+  - [ ] `Registry_Set_LookupTable!()`
+  - [ ] `Registry_Destroy!()`
+  - [ ] `MetaRegItem_AddNew!()`
+  - [ ] `MetaRegItem_Create!()`
+  - [ ] `MetaRegItem_Insert!()`
+  - [ ] `MetaRegItem_Destroy!()`
+- [ ] `./src/state_chm_mod.jl`
+  - [x] `ChmState`
+  - [ ] `Init_and_Register`
+  - [ ] `Register_ChmField`
+  - [ ] `Zero_State_Chm!()`
+  - [ ] `Init_State_Chm!()`
+  - [ ] `Init_Mapping_Vectors!()`
+  - [ ] `Init_Hg_Simulation_Fields!()`
+  - [ ] `Cleanup_State_Chm!()`
+  - [ ] `Get_Metadata_State_Chm!()`
+  - [ ] `Init_and_Register_R4_2D!()`
+  - [ ] `Init_and_Register_R4_3D!()`
+  - [ ] `Init_and_Register_R4_4D!()`
+  - [ ] `Init_and_Register_R8_2D!()`
+  - [ ] `Init_and_Register_R8_3D!()`
+  - [ ] `Init_and_Register_R8_4D!()`
+  - [ ] `Test_for_Species_Dim()`
+  - [ ] `Get_NumSlots()`
+  - [ ] `Get_Diagnostic_Name!()`
+  - [ ] `Register_ChmField_R4_2D!()`
+  - [ ] `Register_ChmField_R4_3D!()`
+  - [ ] `Register_ChmField_R4_4D!()`
+  - [ ] `Register_ChmField_R8_2D!()`
+  - [ ] `Register_ChmField_R8_3D!()`
+  - [ ] `Register_ChmField_R8_4D!()`
+  - [ ] `Ind_()`
+  - [ ] `GetNumProdLossSpecies!()`
+  - [ ] `MapProdLossSpecies!()`
+- [ ] `./src/state_diag_mod.jl`
+  - [x] `DgnState`
+  - [ ] `Finalize`
+  - [ ] `Init_and_Register`
+  - [ ] `Register_DiagField`
+  - [ ] `Zero_State_Diag!()`
+  - [ ] `Init_State_Diag!()`
+  - [ ] `Cleanup_State_Diag!()`
+  - [ ] `Get_Metadata_State_Diag!()`
+  - [ ] `Get_NumTags!()`
+  - [ ] `Get_TagInfo!()`
+  - [ ] `Get_UVFlux_Bin!()`
+  - [ ] `Get_NameInfo!()`
+  - [ ] `Get_DiagNameDesc!()`
+  - [ ] `Register_DiagField_R4_2D!()`
+  - [ ] `Register_DiagField_R4_3D!()`
+  - [ ] `Register_DiagField_R4_4D!()`
+  - [ ] `Register_DiagField_R8_2D!()`
+  - [ ] `Register_DiagField_R8_3D!()`
+  - [ ] `Register_DiagField_R8_4D!()`
+  - [ ] `Init_RRTMG_Indices!()`
+  - [ ] `Get_Mapping!()`
+  - [ ] `Get_MapData_and_NumSlots!()`
+  - [ ] `Init_and_Register_R4_2D!()`
+  - [ ] `Init_and_Register_R4_3D!()`
+  - [ ] `Init_and_Register_R4_4D!()`
+  - [ ] `Init_and_Register_R8_2D!()`
+  - [ ] `Init_and_Register_R8_3D!()`
+  - [ ] `Init_and_Register_R8_4D!()`
+  - [ ] `Finalize_MapData!()`
+  - [ ] `Finalize_R4_2D!()`
+  - [ ] `Finalize_R4_3D!()`
+  - [ ] `Finalize_R4_4D!()`
+  - [ ] `Finalize_R8_2D!()`
+  - [ ] `Finalize_R8_3D!()`
+  - [ ] `Finalize_R8_4D!()`
+  - [ ] `Init_NoRegister_DryDepChmMix!()`

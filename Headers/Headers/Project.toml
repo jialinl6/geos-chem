@@ -1,0 +1,7 @@
+name = "Headers"
+uuid = "7ec8dbf4-7de8-46fc-b187-4edfd7b86939"
+authors = ["jaacko-torus <jaacko.torus@gmail.com>"]
+version = "0.1.0"
+
+[deps]
+DocStringExtensions = "ffbed154-4ef7-542d-bbb7-c09d3a79fcae"

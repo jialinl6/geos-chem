@@ -2331,8 +2331,8 @@ CONTAINS
 ! !INPUT PARAMETERS:
 !
     ! Global latitude indices at the edges of the S/N polar caps
-    ! J1P=JU1_GL+1; J2P=J2_GL-1 for a polar cap of 1 latitude band
-    ! J1P=JU1_GL+2; J2P=J2_GL-2 for a polar cap of 2 latitude bands
+    ! j1p=ju1_gl+1; j2p=j2_gl-1 for a polar cap of 1 latitude band
+    ! j1p=ju1_gl+2; j2p=j2_gl-2 for a polar cap of 2 latitude bands
     INTEGER, INTENT(IN)  :: J1P,    J2P
 
     ! Global min & max longitude (I) and latitude (J) indices
@@ -5172,7 +5172,7 @@ CONTAINS
 !
     ! Global latitude indices at the edges of the S/N polar caps
     ! J1P=JU1_GL+1; J2P=J2_GL-1 for a polar cap of 1 latitude band
-    ! J1P=JU1_GL+2; J2P=J2_GL-2 for a polar cap of 2 latitude bands
+    ! J1P=JU1_GL+2; J2P=J2_GL-2 for a polar cap of 2 latitude band
     INTEGER, INTENT(IN)    :: J1P,    J2P
 
     ! Global min & max longitude (I) and latitude (J) indices

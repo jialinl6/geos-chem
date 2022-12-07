@@ -60,24 +60,46 @@ delp(km) |  q(i, j, km)
 """
 module tpcore_fvdas_mod
 
+export init_tpcore!, exit_tpcore!, tpcore_fvdas!
+
+dtdx5 = zeros(0)
+dtdy5 = zeros(0)
+cosp = zeros(0)
+cose = zeros(0)
+gw = zeros(0)
+dlat = zeros(0)
+
 """
-Subroutine Init_Tpcore allocates and initializes all module variables,
+Allocates and initializes all module variables,
+
+## Arguments
+- `im::Integer` - Global E-W dimension
+- `jm::Integer` - Global N-S dimension
+- `km::Integer` - Vertical dimension
+- `jfirst::Integer` - Local first index for N-S axis
+- `jlast::Integer` - Local last  index for N-S axis
+- `ng::Integer` - large ghost width
+- `mg::Integer` - small ghost width
+- `dt::AbstractFloat` - Time step in seconds
+- `ae::AbstractFloat` - Earth's radius (m)
+- `clat::Array{AbstractFloat}` - latitude in radian
+- `rc::Integer` - Success or failure
 
 ## Revision History
 05 Dec 2008 - C. Carouge - Replaced TPCORE routines by S-J Lin and Kevin Yeh with the TPCORE routines from GMI model. This eliminates the polar overshoot in the stratosphere. See https://github.com/geoschem/geos-chem for complete history.
 """
 function init_tpcore!(
-	im,
-	jm,
-	km,
-	jfirst,
-	jlast,
-	ng,
-	mg,
-	dt,
-	ae,
-	clat,
-	rc
+	im::Integer,
+	jm::Integer,
+	km::Integer,
+	jfirst::Integer,
+	jlast::Integer,
+	ng::Integer,
+	mg::Integer,
+	dt::AbstractFloat,
+	ae::AbstractFloat,
+	clat::Array{AbstractFloat},
+	rc::Integer
 )::Nothing
 	# ! !USES:
 	# !
@@ -191,6 +213,22 @@ function init_tpcore!(
 	println(repeat("=", 79))
 end
 
+"""
+Deallocates all module variables.
+
+## Revision History
+05 Dec 2008 - C. Carouge  - Replaced TPCORE routines by S-J Lin and Kevin Yeh with the TPCORE routines from GMI model. This eliminates the polar overshoot in the stratosphere. See https://github.com/geoschem/geos-chem for complete history.
+"""
+function exit_tpcore!()
+	# ! Deallocate arrays only if they are allocated
+	# IF ( ALLOCATED( COSP   ) ) DEALLOCATE( COSP   )
+	# IF ( ALLOCATED( COSE   ) ) DEALLOCATE( COSE   )
+	# IF ( ALLOCATED( GW     ) ) DEALLOCATE( GW     )
+	# IF ( ALLOCATED( DTDX5  ) ) DEALLOCATE( DTDX5  )
+	# IF ( ALLOCATED( DTDY5  ) ) DEALLOCATE( DTDY5  )
+	# IF ( ALLOCATED( DLAT   ) ) DEALLOCATE( DLAT   )
+end
+
 tpcore_fvdas_first = true
 tpcore_fvdas_ilmt = missing::Union{Missing, Integer}
 tpcore_fvdas_jlmt = missing::Union{Missing, Integer}
@@ -198,7 +236,45 @@ tpcore_fvdas_klmt = missing::Union{Missing, Integer}
 
 """
 Takes horizontal winds on sigma (or hybrid sigma-p) surfaces and calculates mass fluxes, and then updates the 3D mixing ratio fields one time step (tdt).  The basic scheme is a Multi-Dimensional Flux Form Semi-Lagrangian (FFSL) based on the van Leer or PPM (see Lin and Rood, 1995).
-	
+
+## Arguments
+- `dt::AbstractFloat` - IN - Transport time step [s]
+- `ae::AbstractFloat` - IN - Earth's radius [m]
+- `im::Integer` - IN - Global E-W dimensions
+- `jm::Integer` - IN - Global N-S dimensions
+- `km::Integer` - IN - Global vertical dimensions
+- `jfirst::Integer` - IN - Latitude index for local first box
+	- (NOTE: for global grids these are 1 and JM, respectively)
+- `jlast::Integer` - IN - Latitude index for local last box
+	- (NOTE: for global grids these are 1 and JM, respectively)
+- `ng::Integer` - IN - Primary ghost region
+	- (NOTE: only required for MPI parallelization; use 0 otherwise)
+- `mg::Integer` - IN - Secondary ghost region
+	- (NOTE: only required for MPI parallelization; use 0 otherwise)
+- `nq::Integer` - IN - Ghosted latitudes (3 required by PPM)
+	- (NOTE: only required for MPI parallelization; use 0 otherwise)
+- `ak::Array{AbstractFloat}` - IN - (km+1) - Ak coordinates to specify the hybrid grid
+	- (see the REMARKS section below)
+- `bk::Array{AbstractFloat}` - IN - (km+1) - Bk coordinates to specify the hybrid grid
+- (see the REMARKS section below)
+- `u::Array{AbstractFloat, 3}` - IN - (:,:,:) - u-wind (m/s) at mid-time-level (t=t+dt/2)
+- `v::Array{AbstractFloat, 3}` - INOUT - (:,:,:) - V-wind (m/s) at mid-time-level (t=t+dt/2)
+- `ps1::Matrix{AbstractFloat}` - INOUT - (im, jfirst:jlast) - surface pressure at current time
+- `ps2::Matrix{AbstractFloat}` - INOUT - (im, jfirst:jlast) - surface pressure at future time=t+dt
+- `ps::Matrix{AbstractFloat}` - OUT - (im,jfirst:jlast) - "Predicted" surface pressure [hPa]
+- `iord::Integer` - IN - Flag to denote E-W transport scheme
+- `jord::Integer` - IN - Flag to denote N-S transport scheme
+- `kord::Integer` - IN - Flag to denote vertical transport scheme
+- `n_adj::Integer` - IN - Number of adjustments to air_mass_flux (0 = no adjustment)
+- `xmass::Array{AbstractFloat, 3}` - IN - (:,:,:) - E/W mass fluxes [kg/s]
+	- (These are computed by the pressure fixer, and passed into TPCORE)
+- `ymass::Array{AbstractFloat, 3}` - IN - (:,:,:) - N/S mass fluxes [kg/s]
+	- (These are computed by the pressure fixer, and passed into TPCORE)
+- `fill::Bool` - Fill negatives ?
+- `area_m2::Array{AbstractFloat}` - IN - (jm) - Grid box surface area for mass flux diag [m2]
+- `state_chm::ChmState` - INOUT - Diagnostics state object
+- `state_diag::DgnState` - INOUT - Diagnostics state object
+
 ## Author
 Original code from Shian-Jiann Lin, DAO).
 John Tannahill, LLNL (jrt@llnl.gov).
