@@ -89,22 +89,22 @@ Allocates and initializes all module variables,
 05 Dec 2008 - C. Carouge - Replaced TPCORE routines by S-J Lin and Kevin Yeh with the TPCORE routines from GMI model. This eliminates the polar overshoot in the stratosphere. See https://github.com/geoschem/geos-chem for complete history.
 """
 function init_tpcore!(
-	im::Integer,
-	jm::Integer,
-	km::Integer,
-	jfirst::Integer,
-	jlast::Integer,
-	ng::Integer,
-	mg::Integer,
-	dt::AbstractFloat,
-	ae::AbstractFloat,
-	clat::Array{AbstractFloat},
-	rc::Integer
+    im::Integer,
+    jm::Integer,
+    km::Integer,
+    jfirst::Integer,
+    jlast::Integer,
+    ng::Integer,
+    mg::Integer,
+    dt::AbstractFloat,
+    ae::AbstractFloat,
+    clat::Vector{AbstractFloat},
+    rc::Integer
 )::Nothing
-	# ! !USES:
-	# !
-	# USE PhysConstants
-	# USE ErrCode_Mod
+    # ! !USES:
+    # !
+    # USE PhysConstants
+    # USE ErrCode_Mod
 	# !
 	# ! !INPUT PARAMETERS:
 	# !
@@ -113,9 +113,9 @@ function init_tpcore!(
 	# INTEGER,        INTENT(IN)  :: KM         ! Vertical dimension
 	# INTEGER,        INTENT(IN)  :: NG         ! large ghost width
 	# INTEGER,        INTENT(IN)  :: MG         ! small ghost width
-	# REAL(fp),       INTENT(IN)  :: dt         ! Time step in seconds
-	# REAL(fp),       INTENT(IN)  :: ae         ! Earth"s radius (m)
-	# REAL(fp),       INTENT(IN)  :: clat(JM)   ! latitude in radian
+    # REAL(fp),       INTENT(IN)  :: dt         ! Time step in seconds
+    # REAL(fp),       INTENT(IN)  :: ae         ! Earth"s radius (m)
+    # REAL(fp),       INTENT(IN)  :: clat(JM)   ! latitude in radian
 	# !
 	# ! !OUTPUT PARAMETERS:
 	# !
@@ -124,43 +124,43 @@ function init_tpcore!(
 	# INTEGER,        INTENT(OUT) :: RC         ! Success or failure
 
 	elat = zeros(AbstractFloat, jm + 1) # cell edge latitude in radian
-	sine = zeros(AbstractFloat, jm + 1)
-	sine_25 = zeros(AbstractFloat, jm + 1)
+    sine = zeros(AbstractFloat, jm + 1)
+    sine_25 = zeros(AbstractFloat, jm + 1)
 
-	# Initialize
-	rc = gc_success
-	errmsg = ""
-	thisloc = " -> at Init_Tpcore (in module GeosCore/tpcore_fvas_mod.F90)"
+    # Initialize
+    rc = gc_success
+    errmsg = ""
+    thisloc = " -> at Init_Tpcore (in module GeosCore/tpcore_fvas_mod.F90)"
 
-	# NOTE: since we are not using MPI parallelization, we can set JFIRST and JLAST to the global grid limits in latitude. (bmy, 12/3/08)
-	jfirst = 1
-	jlast = jm
+    # NOTE: since we are not using MPI parallelization, we can set JFIRST and JLAST to the global grid limits in latitude. (bmy, 12/3/08)
+    jfirst = 1
+    jlast = jm
 
-	if jlast - jfirst < 2
-		println("Minimum size of subdomain is 3")
-	end
+    if jlast - jfirst < 2
+        println("Minimum size of subdomain is 3")
+    end
 
-	# Allocate arrays
-	
-	# TODO: Translate to Julia
-	
-	# ALLOCATE( cosp( JM ), STAT=RC )
-	# CALL GC_CheckVar( "tpcore_fvdas_mod.F90:cosp",  0, RC )
-	# IF ( RC /= GC_SUCCESS ) RETURN
+    # Allocate arrays
 
-	# ALLOCATE( cose( JM ), STAT=RC )
-	# CALL GC_CheckVar( "tpcore_fvdas_mod.F90:cose",  0, RC )
-	# IF ( RC /= GC_SUCCESS ) RETURN
+    # TODO: Translate to Julia
 
-	# ALLOCATE( gw( JM ), STAT=RC )
-	# CALL GC_CheckVar( "tpcore_fvdas_mod.F90:gw",    0, RC )
-	# IF ( RC /= GC_SUCCESS ) RETURN
+    # ALLOCATE( cosp( JM ), STAT=RC )
+    # CALL GC_CheckVar( "tpcore_fvdas_mod.F90:cosp",  0, RC )
+    # IF ( RC /= GC_SUCCESS ) RETURN
 
-	# ALLOCATE( dtdx5( JM ), STAT=RC )
-	# CALL GC_CheckVar( "tpcore_fvdas_mod.F90:dtdx5", 0, RC )
-	# IF ( RC /= GC_SUCCESS ) RETURN
+    # ALLOCATE( cose( JM ), STAT=RC )
+    # CALL GC_CheckVar( "tpcore_fvdas_mod.F90:cose",  0, RC )
+    # IF ( RC /= GC_SUCCESS ) RETURN
 
-	# ALLOCATE( dtdy5( JM ), STAT=RC )
+    # ALLOCATE( gw( JM ), STAT=RC )
+    # CALL GC_CheckVar( "tpcore_fvdas_mod.F90:gw",    0, RC )
+    # IF ( RC /= GC_SUCCESS ) RETURN
+
+    # ALLOCATE( dtdx5( JM ), STAT=RC )
+    # CALL GC_CheckVar( "tpcore_fvdas_mod.F90:dtdx5", 0, RC )
+    # IF ( RC /= GC_SUCCESS ) RETURN
+
+    # ALLOCATE( dtdy5( JM ), STAT=RC )
 	# CALL GC_CheckVar( "tpcore_fvdas_mod.F90:dtdy5", 0, RC )
 	# IF ( RC /= GC_SUCCESS ) RETURN
 
@@ -174,43 +174,43 @@ function init_tpcore!(
 
 	# S. Pole
 	elat[1] = -0.5 * π
-	sine[1] = -1.0
-	sine_25[1] = -1.0
-	cose[1] = 0.0
+    sine[1] = -1.0
+    sine_25[1] = -1.0
+    cose[1] = 0.0
 
-	for j = 2:jm
-		elat[j] = 0.5 * (clat[j - 1] + clat[j])
-		sine[j] = sin(elat[j])
-		sine_25[j] = sin(clat[j])
-		cose[j] = cos(elat[j])
-	end
+    for j ∈ 2:jm
+        elat[j] = 0.5 * (clat[j-1] + clat[j])
+        sine[j] = sin(elat[j])
+        sine_25[j] = sin(clat[j])
+        cose[j] = cos(elat[j])
+    end
 
-	# N. Pole
-	elat[jm + 1] = 0.5 * π
-	sine[jm + 1] = 1.0
-	sine_25[jm + 1] = 1.0
+    # N. Pole
+    elat[jm+1] = 0.5 * π
+    sine[jm+1] = 1.0
+    sine_25[jm+1] = 1.0
 
-	# Polar cap (S. Pole)
-	dlat[1] = 2.0 * (elat[2] - elat[1])
-	for j = 2:(jm - 1)
-		dlat[j] = elat[j + 1] - elat[j]
-	end
+    # Polar cap (S. Pole)
+    dlat[1] = 2.0 * (elat[2] - elat[1])
+    for j ∈ 2:(jm-1)
+        dlat[j] = elat[j+1] - elat[j]
+    end
 
-	# Polar cap (N. Pole)
-	dlat[jm] = 2.0 * (elat[jm + 1] - elat[jm])
+    # Polar cap (N. Pole)
+    dlat[jm] = 2.0 * (elat[jm+1] - elat[jm])
 
-	for j = 1:jm
-		gw[j] = sine[j + 1] - sine[j]
-		cosp[j] = gw[j] / dlat[j]
+    for j ∈ 1:jm
+        gw[j] = sine[j+1] - sine[j]
+        cosp[j] = gw[j] / dlat[j]
 
-		dtdx5[j] = 0.5 * dt / (dlon * ae * cosp[j])
-		dtdy5[j] = 0.5 * dt / (ae * dlat[j])
-	end
+        dtdx5[j] = 0.5 * dt / (dlon * ae * cosp[j])
+        dtdy5[j] = 0.5 * dt / (ae * dlat[j])
+    end
 
-	# Echo info to stdout
-	println(repeat("=", 79))
-	println("TPCORE_FVDAS (based on GMI) Tracer Transport Module successfully initialized")
-	println(repeat("=", 79))
+    # Echo info to stdout
+    println(repeat("=", 79))
+    println("TPCORE_FVDAS (based on GMI) Tracer Transport Module successfully initialized")
+    println(repeat("=", 79))
 end
 
 """
@@ -221,18 +221,18 @@ Deallocates all module variables.
 """
 function exit_tpcore!()
 	# ! Deallocate arrays only if they are allocated
-	# IF ( ALLOCATED( COSP   ) ) DEALLOCATE( COSP   )
-	# IF ( ALLOCATED( COSE   ) ) DEALLOCATE( COSE   )
-	# IF ( ALLOCATED( GW     ) ) DEALLOCATE( GW     )
-	# IF ( ALLOCATED( DTDX5  ) ) DEALLOCATE( DTDX5  )
-	# IF ( ALLOCATED( DTDY5  ) ) DEALLOCATE( DTDY5  )
-	# IF ( ALLOCATED( DLAT   ) ) DEALLOCATE( DLAT   )
+    # IF ( ALLOCATED( COSP   ) ) DEALLOCATE( COSP   )
+    # IF ( ALLOCATED( COSE   ) ) DEALLOCATE( COSE   )
+    # IF ( ALLOCATED( GW     ) ) DEALLOCATE( GW     )
+    # IF ( ALLOCATED( DTDX5  ) ) DEALLOCATE( DTDX5  )
+    # IF ( ALLOCATED( DTDY5  ) ) DEALLOCATE( DTDY5  )
+    # IF ( ALLOCATED( DLAT   ) ) DEALLOCATE( DLAT   )
 end
 
 tpcore_fvdas_first = true
-tpcore_fvdas_ilmt = missing::Union{Missing, Integer}
-tpcore_fvdas_jlmt = missing::Union{Missing, Integer}
-tpcore_fvdas_klmt = missing::Union{Missing, Integer}
+tpcore_fvdas_ilmt = missing::Union{Missing,Integer}
+tpcore_fvdas_jlmt = missing::Union{Missing,Integer}
+tpcore_fvdas_klmt = missing::Union{Missing,Integer}
 
 """
 Takes horizontal winds on sigma (or hybrid sigma-p) surfaces and calculates mass fluxes, and then updates the 3D mixing ratio fields one time step (tdt).  The basic scheme is a Multi-Dimensional Flux Form Semi-Lagrangian (FFSL) based on the van Leer or PPM (see Lin and Rood, 1995).
@@ -284,47 +284,47 @@ John Tannahill, LLNL (jrt@llnl.gov).
 """
 function tpcore_fvdas!(
 	dt::AbstractFloat,
-	ae::AbstractFloat,
-	im::Integer,
-	jm::Integer,
-	km::Integer,
-	jfirst::Integer,
-	jlast::Integer,
-	ng::Integer,
-	mg::Integer,
-	nq::Integer,
-	ak::Array{AbstractFloat},
-	bk::Array{AbstractFloat},
-	u::Array{AbstractFloat, 3},
-	v::Array{AbstractFloat, 3},
-	ps1::Matrix{AbstractFloat},
-	ps2::Matrix{AbstractFloat},
-	ps::Matrix{AbstractFloat},
-	iord::Integer,
-	jord::Integer,
-	kord::Integer,
-	n_adj::Integer,
-	xmass::Array{AbstractFloat, 3},
-	ymass::Array{AbstractFloat, 3},
-	fill::Bool,
-	area_m2::Array{AbstractFloat},
-	state_chm::ChmState,
-	state_diag::DgnState
+    ae::AbstractFloat,
+    im::Integer,
+    jm::Integer,
+    km::Integer,
+    jfirst::Integer,
+    jlast::Integer,
+    ng::Integer,
+    mg::Integer,
+    nq::Integer,
+    ak::Vector{AbstractFloat},
+    bk::Vector{AbstractFloat},
+    u::Array{AbstractFloat,3},
+    v::Array{AbstractFloat,3},
+    ps1::Matrix{AbstractFloat},
+    ps2::Matrix{AbstractFloat},
+    ps::Matrix{AbstractFloat},
+    iord::Integer,
+    jord::Integer,
+    kord::Integer,
+    n_adj::Integer,
+    xmass::Array{AbstractFloat,3},
+    ymass::Array{AbstractFloat,3},
+    fill::Bool,
+    area_m2::Vector{AbstractFloat},
+    state_chm::ChmState,
+    state_diag::DgnState
 )::Nothing
-	# !
-	# ! !USES:
-	# !
-	# 	! Include files w/ physical constants and met values
-	# 	USE PhysConstants
-	# 	USE ErrCode_Mod
-	# 	USE State_Chm_Mod,  ONLY : ChmState
-	# 	USE State_Diag_Mod, ONLY : DgnState
-	# 	USE error_mod
-	# !
-	# ! !INPUT PARAMETERS:
-	# !
-	# 	! Transport time step [s]
-	# 	REAL(fp),  INTENT(IN)  :: dt
+    # !
+    # ! !USES:
+    # !
+    # 	! Include files w/ physical constants and met values
+    # 	USE PhysConstants
+    # 	USE ErrCode_Mod
+    # 	USE State_Chm_Mod,  ONLY : ChmState
+    # 	USE State_Diag_Mod, ONLY : DgnState
+    # 	USE error_mod
+    # !
+    # ! !INPUT PARAMETERS:
+    # !
+    # 	! Transport time step [s]
+    # 	REAL(fp),  INTENT(IN)  :: dt
 
 	# 	! Earth"s radius [m]
 	# 	REAL(fp),  INTENT(IN)  :: ae
@@ -334,20 +334,20 @@ function tpcore_fvdas!(
 	# 	INTEGER, INTENT(IN)    :: JM
 	# 	INTEGER, INTENT(IN)    :: KM
 
-	# 	! Latitude indices for local first box and local last box
-	# 	! (NOTE: for global grids these are 1 and JM, respectively)
-	# 	INTEGER, INTENT(IN)    :: JFIRST
-	# 	INTEGER, INTENT(IN)    :: JLAST
+    # 	! Latitude indices for local first box and local last box
+    # 	! (NOTE: for global grids these are 1 and JM, respectively)
+    # 	INTEGER, INTENT(IN)    :: JFIRST
+    # 	INTEGER, INTENT(IN)    :: JLAST
 
-	# 	! Primary ghost region
-	# 	! (NOTE: only required for MPI parallelization; use 0 otherwise)
-	# 	INTEGER, INTENT(IN)    :: ng
+    # 	! Primary ghost region
+    # 	! (NOTE: only required for MPI parallelization; use 0 otherwise)
+    # 	INTEGER, INTENT(IN)    :: ng
 
-	# 	! Secondary ghost region
-	# 	! (NOTE: only required for MPI parallelization; use 0 otherwise)
-	# 	INTEGER, INTENT(IN)    :: mg
+    # 	! Secondary ghost region
+    # 	! (NOTE: only required for MPI parallelization; use 0 otherwise)
+    # 	INTEGER, INTENT(IN)    :: mg
 
-	# 	! Ghosted latitudes (3 required by PPM)
+    # 	! Ghosted latitudes (3 required by PPM)
 	# 	! (NOTE: only required for MPI parallelization; use 0 otherwise)
 	# 	INTEGER, INTENT(IN)    :: nq
 
@@ -356,8 +356,8 @@ function tpcore_fvdas!(
 	# 	INTEGER, INTENT(IN)    :: jord
 	# 	INTEGER, INTENT(IN)    :: kord
 
-	# 	! Number of adjustments to air_mass_flux (0 = no adjustment)
-	# 	INTEGER, INTENT(IN)    :: n_adj
+    # 	! Number of adjustments to air_mass_flux (0 = no adjustment)
+    # 	INTEGER, INTENT(IN)    :: n_adj
 
 	# 	! Ak and Bk coordinates to specify the hybrid grid
 	# 	! (see the REMARKS section below)
@@ -368,14 +368,14 @@ function tpcore_fvdas!(
 	# 	REAL(fp),  INTENT(IN)  :: u(:,:,:)
 
 	# 	! E/W and N/S mass fluxes [kg/s]
-	# 	! (These are computed by the pressure fixer, and passed into TPCORE)
-	# 	REAL(fp),  INTENT(IN)  :: XMASS(:,:,:)
-	# 	REAL(fp),  INTENT(IN)  :: YMASS(:,:,:)
+    # 	! (These are computed by the pressure fixer, and passed into TPCORE)
+    # 	REAL(fp),  INTENT(IN)  :: XMASS(:,:,:)
+    # 	REAL(fp),  INTENT(IN)  :: YMASS(:,:,:)
 
-	# 	! Grid box surface area for mass flux diag [m2]
-	# 	REAL(fp),  INTENT(IN)  :: AREA_M2(JM)
+    # 	! Grid box surface area for mass flux diag [m2]
+    # 	REAL(fp),  INTENT(IN)  :: AREA_M2(JM)
 
-	# 	LOGICAL, INTENT(IN)    :: FILL    ! Fill negatives ?
+    # 	LOGICAL, INTENT(IN)    :: FILL    ! Fill negatives ?
 	# !
 	# ! !INPUT/OUTPUT PARAMETERS:
 	# !
@@ -389,139 +389,134 @@ function tpcore_fvdas!(
 	# 	REAL(fp),  INTENT(INOUT) :: ps2(IM, JFIRST:JLAST)
 
 	# 	! Diagnostics state object
-	# 	TYPE(ChmState), INTENT(INOUT) :: State_Chm
-	# 	TYPE(DgnState), INTENT(INOUT) :: State_Diag
-	# !
-	# ! !OUTPUT PARAMETERS:
-	# !
-	# 	! "Predicted" surface pressure [hPa]
-	# 	REAL(fp),  INTENT(OUT)   :: ps(IM,JFIRST:JLAST)
+    # 	TYPE(ChmState), INTENT(INOUT) :: State_Chm
+    # 	TYPE(DgnState), INTENT(INOUT) :: State_Diag
+    # !
+    # ! !OUTPUT PARAMETERS:
+    # !
+    # 	! "Predicted" surface pressure [hPa]
+    # 	REAL(fp),  INTENT(OUT)   :: ps(IM,JFIRST:JLAST)
 
-	# !
-	# ! !DEFINED PARAMETERS:
-	
-	advec_consrv_opt = 2 # 2 = floating pressure
-	cross = true
-	
-	jn = zeros(Integer, km)
-	js = zeros(Integer, km)
-	
-	dap = zeros(AbstractFloat, km)
-	dbk = zeros(AbstractFloat, km)
-	
-	cx = zeros(AbstractFloat, im, (jfirst - ng):(jlast + ng), km) # E-W CFL # on C-grid
-	cy = zeros(AbstractFloat, im, jfirst:(jlast + mg), km) # N-S CFL # on C-grid
-	delp1 = zeros(AbstractFloat, im, jm, km)
-	delp2 = zeros(AbstractFloat, im, jm, km)
-	delpm = zeros(AbstractFloat, im, jm, km)
-	pu = zeros(AbstractFloat, im, jm, km)
-	dpi = zeros(AbstractFloat, im, jm, km)
-	geofac = zeros(AbstractFloat, jm) # geometrical factor for meridional advection; geofac uses correct spherical geometry, and replaces RGW_25. (ccc, 4/1/09)
-	
-	dps_ctm = zeros(AbstractFloat, im,jm)
-	ua = zeros(AbstractFloat, im, jm, km)
-	va = zeros(AbstractFloat, im, jm, km)
-	wz = zeros(AbstractFloat, im, jm, km)
-	dq1 = zeros(AbstractFloat, im, (jfirst - ng):(jlast + ng), km)
+    # !
+    # ! !DEFINED PARAMETERS:
 
-	# qqu, qqv, adx and ady are now 2d arrays for parallelization purposes. (ccc, 4/1/08)
-	qqu = zeros(AbstractFloat, im, jm)
-	qqv = zeros(AbstractFloat, im, jm)
-	adx = zeros(AbstractFloat, im, jm)
-	ady = zeros(AbstractFloat, im, jm)
+    const advec_consrv_opt = 2 # 2 = floating pressure
+    const cross = true
 
-	# fx, fy, fz and qtp are now 4D arrays for parallelization purposes. (ccc, 4/1/09)
-	fx = zeros(AbstractFloat, im, jm, km, nq)
-	fy = zeros(AbstractFloat, im, jm + 1, km, nq) # one more for edges
-	fz = zeros(AbstractFloat, im, jm, km, nq)
+    jn::Vector{Integer} = js::Vector{Integer} = zeros(km)
 
+    dap::Vector{AbstractFloat} = dbk::Vector{AbstractFloat} = zeros(km)
 
-	# 	# Add pointer to avoid array temporary in call to FZPPM (bmy, 6/5/13)
-	# 	REAL(fp),  POINTER :: q_ptr(:,:,:)
+    cx::Array{AbstractFloat,3} = zeros(im, (jfirst-ng):(jlast+ng), km) # E - W CFL # on C - grid
+    cy::Array{AbstractFloat,3} = zeros(im, jfirst:(jlast+mg), km) # N - S CFL # on C - grid
 
-	# Add definition of j1p and j2p for enlarge polar cap. (ccc, 11/20/08)
-	j1p = 3
-	j2p = jm - j1p + 1
+    delp1::Array{AbstractFloat,3} = delp2::Array{AbstractFloat,3} = delpm::Array{AbstractFloat,3} = pu::Array{AbstractFloat,3} = dpi::Array{AbstractFloat,3} = zeros(im, jm, km)
 
-	# MACROS
-	#ifdef TOMAS
-		# For TOMAS microphysics: zero out UA and VA.
-		# Segregate this block from the code with an #ifdef block. We can"t bring this into the standard GEOS-Chem yet, since that will make it hard to compare benchmark results to prior versions.  When we do bring this change into the standard code, we will have to benchmark it. (sfarina, bmy, 5/30/13)
-		for ik = 1:km, ij = 1:jm, il = 1:im
-			va[il, ij, ik] = 0.0
-			ua[il, ij, ik] = 0.0
-		end
-	#endif
+    geofac::Vector{AbstractFloat} = zeros(jm) # geometrical factor for meridional advection; geofac uses correct spherical geometry, and replaces RGW_25. (ccc, 4/1/09)
 
-	# Average surf. pressures in the polar cap. (ccc, 11/20/08)
-	# TODO:
-	average_press_poles!(area_m2, ps1, 1, im, 1, jm, 1, im, 1, jm)
-	# TODO:
-	average_press_poles!(area_m2, ps2, 1, im, 1, jm, 1, im, 1, jm)
-	
-	# Calculation of some geographic factors. (ccc, 11/20/08)
-	rj2m1 = jm - 1
-	dp = π / rj2m1
+    dps_ctm::Matrix{AbstractFloat} = zeros(im, jm)
+    ua::Array{AbstractFloat,3} = va::Array{AbstractFloat,3} = wz::Array{AbstractFloat,3} = zeros(im, jm, km)
 
-	for ij = 1:jm
-		geofac[ij] = dp / (2.0 * area_m2[ij] / (sum(area_m2) * im) * im)
-	end
+    dq1::Array{AbstractFloat,3} = zeros(im, (jfirst-ng):(jlast+ng), km)
 
-	geofac_pc = dp / (2.0 * (sum(area_m2[1:2]) / (sum(area_m2) * im)) * im)
+    # qqu, qqv, adx and ady are now 2d arrays for parallelization purposes. (ccc, 4/1/08)
+    qqu::Matrix{AbstractFloat} = qqv::Matrix{AbstractFloat} = adx::Matrix{AbstractFloat} = ady::Matrix{AbstractFloat} = zeros(im, jm)
 
-	if tpcore_fvdas_first
-		tpcore_fvdas_first = false
-		# TODO:
-		set_lmts!(tpcore_fvdas_ilmt, tpcore_fvdas_jlmt, tpcore_fvdas_klmt, im, jm, iord, jord, kord)
-	end
+    # fx, fy, fz and qtp are now 4D arrays for parallelization purposes. (ccc, 4/1/09)
+    fx::Array{AbstractFloat,4} = zeros(im, jm, km, nq)
+    fy::Array{AbstractFloat,4} = zeros(im, jm + 1, km, nq) # one more for edges
+    fz::Array{AbstractFloat,4} = zeros(im, jm, km, nq)
 
-	# Pressure calculations. (ccc, 11/20/08)
-	for ik = 1:km
-		dap[ik] = ak[ik + 1] - ak[ik]
-		dbk[ik] = bk[ik + 1] - bk[ik]
-	end
+    # 	# Add pointer to avoid array temporary in call to FZPPM (bmy, 6/5/13)
+    # 	REAL(fp),  POINTER :: q_ptr(:,:,:)
 
-	# NOTE: Translate parallel for below to parallel loop in Julia
-	# !$OMP PARALLEL DO        &
-	# !$OMP DEFAULT( SHARED  ) &
-	# !$OMP PRIVATE( IK, IQ, q_ptr )
-	for ik = 1:km
-		# TODO:
-		set_press_terms!(dap[ik], dbk[ik], ps1, ps2, delp1[:, :, ik], delpm[:, :, ik], pu[:, :, ik], 1, jm, 1, im, 1, jm, j1p, j2p, 1, im, 1, jm)
-				
-		# ...intent(in)  dap - difference in ai across layer (mb)
-		# ...intent(in)  dbk - difference in bi across layer (mb)
+    # Add definition of j1p and j2p for enlarge polar cap. (ccc, 11/20/08)
+    j1p = 3
+    j2p = jm - j1p + 1
+
+    # MACROS
+    #ifdef TOMAS
+    # For TOMAS microphysics: zero out UA and VA.
+    # Segregate this block from the code with an #ifdef block. We can"t bring this into the standard GEOS - Chem yet, since that will make it hard to compare benchmark results to prior versions.  When we do bring this change into the standard code, we will have to benchmark it. (sfarina, bmy, 5/30/13)
+    for ik ∈ 1:km
+        for ij ∈ 1:jm
+            for il ∈ 1:im
+                va[il, ij, ik] = 0.0
+                ua[il, ij, ik] = 0.0
+            end
+        end
+    end
+    #endif
+
+    # Average surf. pressures in the polar cap. (ccc, 11/20/08)
+    # TODO:
+    average_press_poles!(area_m2, ps1, 1, im, 1, jm, 1, im, 1, jm)
+    # TODO:
+    average_press_poles!(area_m2, ps2, 1, im, 1, jm, 1, im, 1, jm)
+
+    # Calculation of some geographic factors. (ccc, 11/20/08)
+    rj2m1 = jm - 1
+    dp = π / rj2m1
+
+    for ij ∈ 1:jm
+        geofac[ij] = dp / (2.0 * area_m2[ij] / (sum(area_m2) * im) * im)
+    end
+
+    geofac_pc = dp / (2.0 * (sum(area_m2[1:2]) / (sum(area_m2) * im)) * im)
+
+    if tpcore_fvdas_first
+        tpcore_fvdas_first = false
+        # TODO:
+        set_lmts!(tpcore_fvdas_ilmt, tpcore_fvdas_jlmt, tpcore_fvdas_klmt, im, jm, iord, jord, kord)
+    end
+
+    # Pressure calculations. (ccc, 11/20/08)
+    for ik ∈ 1:km
+        dap[ik] = ak[ik+1] - ak[ik]
+        dbk[ik] = bk[ik+1] - bk[ik]
+    end
+
+    # NOTE: Translate parallel for below to parallel loop in Julia
+    # !$OMP PARALLEL DO        &
+    # !$OMP DEFAULT( SHARED  ) &
+    # !$OMP PRIVATE( IK, IQ, q_ptr )
+    for ik ∈ 1:km
+        # TODO:
+        set_press_terms!(dap[ik], dbk[ik], ps1, ps2, delp1[:, :, ik], delpm[:, :, ik], pu[:, :, ik], 1, jm, 1, im, 1, jm, j1p, j2p, 1, im, 1, jm)
+
+        # ...intent(in)  dap - difference in ai across layer (mb)
+        # ...intent(in)  dbk - difference in bi across layer (mb)
 		# ...intent(in)  pres1 - surface pressure at t1 (mb)
 		# ...intent(in)  pres2 - surface pressure at t1+tdt (mb)
 		# ...intent(out) delp1 - pressure thickness at t1 (mb)
 		# ...intent(out) delpm - pressure thickness at t1+tdt/2 (mb)
 		# ...intent(out) pu - pressure at edges of box for "u" (mb)
 
-		if j1p != 1 + 1
-			for iq = 1:nq
+        if j1p != 1 + 1
+            for iq ∈ 1:nq
 
 				# TODO: translate to Julia
 				# TODO: Translate % to Julia
 				# q_ptr => State_Chm%Species(iq)%Conc(:,:,km:1:-1)
 				
 				average_const_poles!(dap[ik], dbk[ik], area_m2, ps1, q_ptr[:, :, ik], 1, jm, im, 1, im, 1, jm, 1, im, 1, jm)
-				
-				# TODO: translate to Julia
-				# q_ptr => NULL()
-			end
-		end
-		
-		# TODO:
-		calc_courant!(cose, delpm[:, :, ik], pu[:, :, ik], xmass[:, :, ik], ymass[:, :, ik], cx[:, :, ik], cy[:, :, ik], j1p, j2p, 1, jm, 1, im, 1, jm, 1, im, 1, jm)
 
-		# TODO:
-		calc_divergence!(true, geofac_pc, geofac, dpi[:, :, ik], xmass[:, :, ik], ymass[:, :, ik], j1p, j2p, 1, im, 1, jm, 1, im, 1, jm, 1, im, 1, jm)
-		
-		# TODO:
-		set_cross_terms!(cx[:, :, ik], cy[:, :, ik], ua[:, :, ik], va[:, :, ik], j1p, j2p, 1, im, 1, jm, 1, im, 1, jm, 1, im, 1, jm, cross)
-	end
+                # TODO: translate to Julia
+                # q_ptr => NULL()
+            end
+        end
 
-	dps_ctm[:, :] .= sum(dpi[:, :, :])
+        # TODO:
+        calc_courant!(cose, delpm[:, :, ik], pu[:, :, ik], xmass[:, :, ik], ymass[:, :, ik], cx[:, :, ik], cy[:, :, ik], j1p, j2p, 1, jm, 1, im, 1, jm, 1, im, 1, jm)
+
+        # TODO:
+        calc_divergence!(true, geofac_pc, geofac, dpi[:, :, ik], xmass[:, :, ik], ymass[:, :, ik], j1p, j2p, 1, im, 1, jm, 1, im, 1, jm, 1, im, 1, jm)
+
+        # TODO:
+        set_cross_terms!(cx[:, :, ik], cy[:, :, ik], ua[:, :, ik], va[:, :, ik], j1p, j2p, 1, im, 1, jm, 1, im, 1, jm, 1, im, 1, jm, cross)
+    end
+
+    dps_ctm[:, :] .= sum(dpi[:, :, :])
 
 	# TODO:
 	calc_vert_mass_flux!(dbk, dps_ctm, dpi, wz, 1, im, 1, jm, 1, km)
@@ -531,60 +526,68 @@ function tpcore_fvdas!(
 	# .sds2.. save omega (vertical flux) as diagnostic
 	
 	# TODO:
-	set_jn_js!(jn, js, cx, 1, im, 1, jm, 1, jm, j1p, j2p, 1, im, 1, jm, 1, km)
-	
-	if advec_consrv_opt == 0
-		# NOTE: Translate parallel for below to parallel loop in Julia
-		# !$OMP PARALLEL DO           &
-		# !$OMP DEFAULT( SHARED     ) &
-		# !$OMP PRIVATE( IK, IJ, IL )
-		for ik = 1:km, ij = 1:jm, il = 1:im
-			delp2[il, ij, ik] = dap[ik] + (dbk[ik] * (ps1[il, ij] + dps_ctm[il, ij]))
-		end
-	elseif advec_consrv_opt == 1 || advec_consrv_opt == 2
-		# NOTE: Translate parallel for below to parallel loop in Julia
-		# !$OMP PARALLEL DO           &
-		# !$OMP DEFAULT( SHARED     ) &
-		# !$OMP PRIVATE( IK, IJ, IL )
-		for ik = 1:km, ij = 1:jm, il = 1:im
-			delp2[il, ij, ik] = dap[ik] + (dbk[ik] * ps2[il, ij])
-		end
-	end
+    set_jn_js!(jn, js, cx, 1, im, 1, jm, 1, jm, j1p, j2p, 1, im, 1, jm, 1, km)
+
+    if advec_consrv_opt == 0
+        # NOTE: Translate parallel for below to parallel loop in Julia
+        # !$OMP PARALLEL DO           &
+        # !$OMP DEFAULT( SHARED     ) &
+        # !$OMP PRIVATE( IK, IJ, IL )
+        for ik ∈ 1:km
+            for ij ∈ 1:jm
+                for il ∈ 1:im
+                    delp2[il, ij, ik] = dap[ik] + (dbk[ik] * (ps1[il, ij] + dps_ctm[il, ij]))
+                end
+            end
+        end
+    elseif advec_consrv_opt == 1 || advec_consrv_opt == 2
+        # NOTE: Translate parallel for below to parallel loop in Julia
+        # !$OMP PARALLEL DO           &
+        # !$OMP DEFAULT( SHARED     ) &
+        # !$OMP PRIVATE( IK, IJ, IL )
+        for ik ∈ 1:km
+            for ij ∈ 1:jm
+                for il ∈ 1:im
+                    delp2[il, ij, ik] = dap[ik] + (dbk[ik] * ps2[il, ij])
+                end
+            end
+        end
+    end
 
 	# Calculate surf. pressure at t+dt. (ccc, 11/20/08)
 	ps = ak[1] + sum(delp2)
 
 	# > For time optimization : we parallelize over tracers and we loop over the levels outside horizontal transport functions. (ccc, 4/1/09)
-	# > Also zeroed PRIVATE variables within the loop, and set jn(ik) and js(ik) to PRIVATE loop variables.  This seems to avoid small diffs in output.
-	# > -- Bob Yantosca (04 Jan 2022)
+    # > Also zeroed PRIVATE variables within the loop, and set jn(ik) and js(ik) to PRIVATE loop variables.  This seems to avoid small diffs in output.
+    # > -- Bob Yantosca (04 Jan 2022)
 
-	# NOTE: Translate parallel for below to parallel loop in Julia
-	# !$OMP PARALLEL DO                                                     &
-	# !$OMP DEFAULT( SHARED                                               ) &
-	# !$OMP PRIVATE( iq, dq1, ik, adx, ady, q_ptr, qqu, qqv, north, south )
-	for iq = 1:nq
+    # NOTE: Translate parallel for below to parallel loop in Julia
+    # !$OMP PARALLEL DO                                                     &
+    # !$OMP DEFAULT( SHARED                                               ) &
+    # !$OMP PRIVATE( iq, dq1, ik, adx, ady, q_ptr, qqu, qqv, north, south )
+    for iq ∈ 1:nq
 		# TODO: figure out how to translate this to Julia
 		# q_ptr => state_chm%species(iq)%conc(:,:,km:1:-1)
 
 		# Zero 3-D arrays for each species
 		dq1 = 0.0
 
-		for ik = 1:km
-			# Zero PRIVATE variables for safety"s sake
-			adx = 0.0
-			ady = 0.0
-			qqu = 0.0
-			qqv = 0.0
+        for ik ∈ 1:km
+            # Zero PRIVATE variables for safety"s sake
+            adx = 0.0
+            ady = 0.0
+            qqu = 0.0
+            qqv = 0.0
 
-			# Northernmost and southernmost latitude indices by level
-			north = jn[ik]
-			south = js[ik]
+            # Northernmost and southernmost latitude indices by level
+            north = jn[ik]
+            south = js[ik]
 
-			# .sds.. convert to "mass"
-			dq1[:, :, ik] .= q_ptr[:, :, ik] * delp1[:, :, ik]
+            # .sds.. convert to "mass"
+            dq1[:, :, ik] .= q_ptr[:, :, ik] * delp1[:, :, ik]
 
-			# TODO:
-			calc_advec_cross_terms!(north, south, q_ptr[:, :, ik], qqu, qqv, ua[:, :, ik], va[:, :, ik], j1p, j2p, im, 1, jm, 1, im, 1, jm, 1, im, 1, jm, cross)
+            # TODO:
+            calc_advec_cross_terms!(north, south, q_ptr[:, :, ik], qqu, qqv, ua[:, :, ik], va[:, :, ik], j1p, j2p, im, 1, jm, 1, im, 1, jm, 1, im, 1, jm, cross)
 			
 			# .sds.. notes on arrays
 			#   q   (in)  - species mixing ratio
@@ -620,16 +623,16 @@ function tpcore_fvdas!(
 			# .sds
 			# 
 			# .bmy notes: use a polar cap of 2 boxes (i.e. the "2" as
-			#  the first argument to YADV_DAO2.  The older TPCORE only had
-			#  a polar cap of 1 box (just the Pole itself).  Claire figured
-			#  this out.  (bmy, 12/11/08)
-			# ... update constituent array qq1 by adding in cross terms
-			#            - use in fzppm
-				
-			q_ptr[:, :, ik] = q_ptr[:, :, ik] + ady + adx
+            #  the first argument to YADV_DAO2.  The older TPCORE only had
+            #  a polar cap of 1 box (just the Pole itself).  Claire figured
+            #  this out.  (bmy, 12/11/08)
+            # ... update constituent array qq1 by adding in cross terms
+            #            - use in fzppm
 
-			# TODO:
-			xtp!(tpcore_fvdas_ilmt, north, south, pu[:, :, ik],  cx[:, :, ik], dq1[:, :, ik], qqv, xmass[:, :, ik], fx[:, :, ik, iq], j1p, j2p, im, 1, jm, 1, im, 1, jm, 1, im, 1, jm, iord)
+            q_ptr[:, :, ik] = q_ptr[:, :, ik] + ady + adx
+
+            # TODO:
+            xtp!(tpcore_fvdas_ilmt, north, south, pu[:, :, ik], cx[:, :, ik], dq1[:, :, ik], qqv, xmass[:, :, ik], fx[:, :, ik, iq], j1p, j2p, im, 1, jm, 1, im, 1, jm, 1, im, 1, jm, iord)
 
 			# .sds notes on output arrays
 			#   pu  (in)    - pressure at edges in "u" (mb)
@@ -641,9 +644,9 @@ function tpcore_fvdas!(
 			#   xmass(in)   - horizontal mass flux in E-W direction (mb)
 			#   fx  (out)   - species E-W mass flux
 			# .sds
-			
-			# TODO:
-			ytp!(tpcore_fvdas_jlmt, geofac_pc, geofac, cy[:, :, ik], dq1[:, :, ik], qqu, qqv, ymass[:, :, ik], fy[:, :, ik, iq], j1p, j2p, 1, im, 1, jm, im, 1, im, 1, jm, 1, im, 1, jm, jord)
+
+            # TODO:
+            ytp!(tpcore_fvdas_jlmt, geofac_pc, geofac, cy[:, :, ik], dq1[:, :, ik], qqu, qqv, ymass[:, :, ik], fy[:, :, ik, iq], j1p, j2p, 1, im, 1, jm, im, 1, im, 1, jm, 1, im, 1, jm, jord)
 
 			# .sds notes on output arrays
 			#   cy (in)     - Courant number in N-S direction
@@ -657,30 +660,30 @@ function tpcore_fvdas!(
 			#   fy  (out)   - species N-S mass flux (need to mult by geofac)
 			# .sds
 		end # ik
-		
-		# TODO:
-		fzppm!(tpcore_fvdas_klmt, delp1, wz, dq1, q_ptr, fz[:, :, :, iq], j1p, 1, jm, 1, im, 1, jm, im, km, 1, im, 1, jm, 1, km)
 
-		# .sds notes on output arrays
-		#    wz  (in) : vertical mass flux
-		#    dq1 (inout) : species density (mb)
-		#    q (in) : species concentration (mixing ratio)
-		# .sds
+        # TODO:
+        fzppm!(tpcore_fvdas_klmt, delp1, wz, dq1, q_ptr, fz[:, :, :, iq], j1p, 1, jm, 1, im, 1, jm, im, km, 1, im, 1, jm, 1, km)
 
-		if fill
-			# TODO:
-			qckxyz!(dq1, j1p, j2p, 1, jm, 1, im, 1, jm, 1, im, 1, jm, 1, km)
-		end
+        # .sds notes on output arrays
+        #    wz  (in) : vertical mass flux
+        #    dq1 (inout) : species density (mb)
+        #    q (in) : species concentration (mixing ratio)
+        # .sds
 
-		q_ptr[:, :, :] .= dq1 / delp2
+        if fill
+            # TODO:
+            qckxyz!(dq1, j1p, j2p, 1, jm, 1, im, 1, jm, 1, im, 1, jm, 1, km)
+        end
 
-		if j1p != 2
-			q_ptr[:, 2, :] .= q_ptr[:, 1, :]
-			q_ptr[:, jm - 1, :]  .= q_ptr[:, jm, :]
-		end
+        q_ptr[:, :, :] .= dq1 / delp2
 
-		# MODIFICATION by Harvard Atmospheric Chemistry Modeling Group
-		# Set tracer concentration to a small positive number if concentration is negative. Negative concentration may occur at the poles. This is an issue that should be looked into in the future. (ewl, 6/30/15)
+        if j1p != 2
+            q_ptr[:, 2, :] .= q_ptr[:, 1, :]
+            q_ptr[:, jm-1, :] .= q_ptr[:, jm, :]
+        end
+
+        # MODIFICATION by Harvard Atmospheric Chemistry Modeling Group
+        # Set tracer concentration to a small positive number if concentration is negative. Negative concentration may occur at the poles. This is an issue that should be looked into in the future. (ewl, 6/30/15)
 			
 		# TODO: Tranlate this to Julia
 		# where ( q_ptr < 0.0_fp )
@@ -688,108 +691,108 @@ function tpcore_fvdas!(
 		# end where
 
 		# TODO: Tranlate this to Julia
-		# q_ptr => NULL()
-	end
-	
-	# MODIFICATION by Harvard Atmospheric Chemistry Modeling Group
-	# HISTORY (aka netCDF diagnostics)
-	# E/W flux of advected species [kg/s] (ccarouge 12/2/08)
-	# The unit conversion is:
-	# Mass/time = (P diff in grid box) * 100/1 * 1/g * (area of grid box area_m2) * 1/s
-	# k/g = hPa/1 * Pa/hPa * (s^2)/m * (m^2)/1 * 1/ΔT
-	
-	# TODO: Translate % to Julia
-	# if state_diag%archive_advfluxzonal
-	# 	# Zero netCDF diagnostic array
-	# 	state_diag%advfluxzonal = 0.0
+        # q_ptr => NULL()
+    end
 
-	# 	# Calculate fluxes for diag. (ccc, 11/20/08)
-	# 	js2g0  = max( j1p, jfirst ) # No ghosting
-	# 	jn2g0  = min( j2p, jlast  ) # No ghosting
+    # MODIFICATION by Harvard Atmospheric Chemistry Modeling Group
+    # HISTORY (aka netCDF diagnostics)
+    # E/W flux of advected species [kg/s] (ccarouge 12/2/08)
+    # The unit conversion is:
+    # Mass/time = (P diff in grid box) * 100/1 * 1/g * (area of grid box area_m2) * 1/s
+    # k/g = hPa/1 * Pa/hPa * (s^2)/m * (m^2)/1 * 1/ΔT
 
-	# 	# Loop over diagnostic slots
-	# 	# NOTE: Translate parallel for below to parallel loop in Julia
-	# 	# !$OMP PARALLEL DO                           &
-	# 	# !$OMP DEFAULT( SHARED                     ) &
-	# 	# !$OMP PRIVATE( S, IQ, K, J, I, Kflip )
-	# 	# TODO: Translate % to Julia
-	# 	# for s = 1:state_diag%map_advfluxzonal%nslots
-	# 	# 	# Get the advectId from the slotId
-	# 	# 	# iq = state_diag%map_advfluxzonal%slot2id(s)
-	# 	# 	# Loop over grid boxes
-	# 	# 	for k = 1:km, j = js2g0:jn2g0, i = 1:im
+    # TODO: Translate % to Julia
+    # if state_diag%archive_advfluxzonal
+    # 	# Zero netCDF diagnostic array
+    # 	state_diag%advfluxzonal = 0.0
+
+    # 	# Calculate fluxes for diag. (ccc, 11/20/08)
+    # 	js2g0  = max( j1p, jfirst ) # No ghosting
+    # 	jn2g0  = min( j2p, jlast  ) # No ghosting
+
+    # 	# Loop over diagnostic slots
+    # 	# NOTE: Translate parallel for below to parallel loop in Julia
+    # 	# !$OMP PARALLEL DO                           &
+    # 	# !$OMP DEFAULT( SHARED                     ) &
+    # 	# !$OMP PRIVATE( S, IQ, K, J, I, Kflip )
+    # 	# TODO: Translate % to Julia
+    # 	# for s ∈ 1:state_diag%map_advfluxzonal%nslots
+    # 	# 	# Get the advectId from the slotId
+    # 	# 	# iq = state_diag%map_advfluxzonal%slot2id(s)
+    # 	# 	# Loop over grid boxes
+    # 	# 	for k ∈ 1:km for j ∈ js2g0:jn2g0 for i ∈ 1:im
 	# 	# 		# Units: [kg/s]
 	# 	# 		# But consider changing to area-independent units [kg/m2/s]
 	# 	# 		kflip = km - k + 1 # flip vert
-				
-	# 	# 		# state_diag%advfluxzonal(i,j,kflip,s) = fx(i,j,k,iq) * area_m2(j) * g0_100 / dt
-	# 	# 	end
-	# 	# end
-	# end
 
-	# MODIFICATION by Harvard Atmospheric Chemistry Modeling Group
+    # 	# 		# state_diag%advfluxzonal(i,j,kflip,s) = fx(i,j,k,iq) * area_m2(j) * g0_100 / dt
+    # 	# 	end end end
+    # 	# end
+    # end
+
+    # MODIFICATION by Harvard Atmospheric Chemistry Modeling Group
 	# HISTORY (aka netCDF diagnostics)
 	# N/S flux of tracer [kg/s] (bdf, bmy, 9/28/04, ccarouge 12/12/08)
 	# NOTE, the unit conversion is the same as desciribed above for the E-W diagnostics.  The geometrical factor was already applied to fy in Ytp. (ccc, 4/1/09)
 	
 	
-	# TODO: Translate % to Julia
-	# if state_diag%archive_advfluxmerid
-	# 	# Zero netCDF diagnostic array
-	# 	state_diag%advfluxmerid = 0.0
+    # TODO: Translate % to Julia
+    # if state_diag%archive_advfluxmerid
+    # 	# Zero netCDF diagnostic array
+    # 	state_diag%advfluxmerid = 0.0
 
-	# 	# NOTE: Translate parallel for below to parallel loop in Julia
-	# 	# !$OMP PARALLEL DO                           &
-	# 	# !$OMP DEFAULT( SHARED                     ) &
-	# 	# !$OMP PRIVATE( S, IQ, K, J, I, Kflip )
-	# 	for s = 1:state_diag%map_advfluxmerid%nslots
-	# 		# Get the advectId from the slotId
-	# 		iq = state_diag%map_advfluxmerid%slot2id(s)
+    # 	# NOTE: Translate parallel for below to parallel loop in Julia
+    # 	# !$OMP PARALLEL DO                           &
+    # 	# !$OMP DEFAULT( SHARED                     ) &
+    # 	# !$OMP PRIVATE( S, IQ, K, J, I, Kflip )
+    # 	for s ∈ 1:state_diag%map_advfluxmerid%nslots
+    # 		# Get the advectId from the slotId
+    # 		iq = state_diag%map_advfluxmerid%slot2id(s)
 
-	# 		# Loop over grid boxes
-	# 		for k = 1:km, j = 1:jm, i = 1:im
-	# 			# Compute mass flux [kg/s]
+    # 		# Loop over grid boxes
+    # 		for k ∈ 1:km for j ∈ 1:jm for i ∈ 1:im
+    # 			# Compute mass flux [kg/s]
 	# 			# Units: [kg/s]
 	# 			# But consider changing to area-independent units [kg/m2/s]
 	# 			kflip = km - k + 1  ! flip vert
-	# 			state_diag%advfluxmerid(i,j,kflip,s) = fy(i,j,k,iq) * area_m2(j) * g0_100 / dt
-	# 		end
-	# 	end
-	# end
+    # 			state_diag%advfluxmerid(i,j,kflip,s) = fy(i,j,k,iq) * area_m2(j) * g0_100 / dt
+    # 		end end end
+    # 	end
+    # end
 
-	# ! MODIFICATION by Harvard Atmospheric Chemistry Modeling Group
-	# ! HISTORY (aka netCDF diagnostics)
-	# Up/down flux of tracer [kg/s] (bmy, bdf, 9/28/04, ccarouge 12/2/08)
-	# The vertical transport done in qmap.  We need to find the difference in order to to interpret transport.
-	# Break up diagnostic into up & down fluxes using the surface boundary conditions.  Start from top down (really surface up for flipped TPCORE)
-	# By construction, MASSFLUP is flux into the bottom of the box. The flux at the bottom of KM (the surface box) is not zero by design. (phs, 3/4/08)
-	
-	# TODO: Translate % to Julia
-	# if State_Diag%Archive_AdvFluxVert
-	# 	# Zero netCDF diagnostic array
-	# 	State_Diag%AdvFluxVert .= 0.0
+    # ! MODIFICATION by Harvard Atmospheric Chemistry Modeling Group
+    # ! HISTORY (aka netCDF diagnostics)
+    # Up/down flux of tracer [kg/s] (bmy, bdf, 9/28/04, ccarouge 12/2/08)
+    # The vertical transport done in qmap.  We need to find the difference in order to to interpret transport.
+    # Break up diagnostic into up & down fluxes using the surface boundary conditions.  Start from top down (really surface up for flipped TPCORE)
+    # By construction, MASSFLUP is flux into the bottom of the box. The flux at the bottom of KM (the surface box) is not zero by design. (phs, 3/4/08)
 
-	# 	# NOTE: Translate parallel for below to parallel loop in Julia
-	# 	# !$OMP PARALLEL DO                           &
-	# 	# !$OMP DEFAULT( SHARED                     ) &
-	# 	# !$OMP PRIVATE( S, IQ, K, J, I, Kflip )
-	# 	for s = 1:State_Diag%Map_AdvFluxVert%nSlots
-	# 		# Get the advectId from the modelId
-	# 		iq = State_Diag%Map_AdvFluxVert%slot2Id(S)
+    # TODO: Translate % to Julia
+    # if State_Diag%Archive_AdvFluxVert
+    # 	# Zero netCDF diagnostic array
+    # 	State_Diag%AdvFluxVert .= 0.0
 
-	# 		# Loop over grid boxes
-	# 		for k = 1:km, j = 1:jm, i = 1:im
-	# 			# Ilya Stanevic (stanevic@atmosp.physics.utoronto.ca) says that using FZ for the ND26 diagnostic should be correct. He writes:
-	# 			# > To be safe you can use FZ variable from Fzppm. That is the real vertical species mass. And it is zero at the surface.
-	# 			# > To be clear, Fz is present only in the tpcore for low resolution GLOBAL model (4x5, 2x2.5). Nested model has different way to calculate vertical advection and there is no such thing as FZ. Therefore, we have to calculate the species mass difference in the box before and after vertical advection in order to get vertical mass flux.
-	# 			# > -- Bob Yantosca (28 Mar 2017)
+    # 	# NOTE: Translate parallel for below to parallel loop in Julia
+    # 	# !$OMP PARALLEL DO                           &
+    # 	# !$OMP DEFAULT( SHARED                     ) &
+    # 	# !$OMP PRIVATE( S, IQ, K, J, I, Kflip )
+    # 	for s ∈ 1:State_Diag%Map_AdvFluxVert%nSlots
+    # 		# Get the advectId from the modelId
+    # 		iq = State_Diag%Map_AdvFluxVert%slot2Id(S)
+
+    # 		# Loop over grid boxes
+    # 		for k ∈ 1:km for j ∈ 1:jm for i ∈ 1:im
+    # 			# Ilya Stanevic (stanevic@atmosp.physics.utoronto.ca) says that using FZ for the ND26 diagnostic should be correct. He writes:
+    # 			# > To be safe you can use FZ variable from Fzppm. That is the real vertical species mass. And it is zero at the surface.
+    # 			# > To be clear, Fz is present only in the tpcore for low resolution GLOBAL model (4x5, 2x2.5). Nested model has different way to calculate vertical advection and there is no such thing as FZ. Therefore, we have to calculate the species mass difference in the box before and after vertical advection in order to get vertical mass flux.
+    # 			# > -- Bob Yantosca (28 Mar 2017)
 	# 			# Units: [kg/s]
 	# 			# But consider changing to area-independent units [kg/m2/s]
 	# 			kflip = km - k + 1  !flip vert
 	# 			state_diag%advfluxvert(i,j,kflip,s) = fz(i,j,k,iq) * area_m2(j) * g0_100 / dt
-	# 		end
-	# 	end
-	# end
+    # 		end end end
+    # 	end
+    # end
 end
 
 """
@@ -821,57 +824,61 @@ John Tannahill, LLNL (jrt@llnl.gov).
 05 Dec 2008 - C. Carouge - Replaced TPCORE routines by S-J Lin and Kevin Yeh with the TPCORE routines from GMI model. This eliminates the polar overshoot in the stratosphere. See https://github.com/geoschem/geos-chem for complete history.
 """
 function average_const_poles!(
-	dap::AbstractFloat,
-	dbk::Integer,
-	rel_area::Array{AbstractFloat},
-	pctm1::Matrix{AbstractFloat},
-	const1::Matrix{AbstractFloat},
-	ju1_gl::Integer,
-	j2_gl::Integer,
-	i2_gl::Integer,
-	i1::Integer,
-	i2::Integer,
-	ju1::Integer,
-	j2::Integer,
-	ilo::Integer,
-	ihi::Integer,
-	julo::Integer,
-	jhi::Integer
+    dap::AbstractFloat,
+    dbk::Integer,
+    rel_area::Vector{AbstractFloat},
+    pctm1::Matrix{AbstractFloat},
+    const1::Matrix{AbstractFloat},
+    ju1_gl::Integer,
+    j2_gl::Integer,
+    i2_gl::Integer,
+    i1::Integer,
+    i2::Integer,
+    ju1::Integer,
+    j2::Integer,
+    ilo::Integer,
+    ihi::Integer,
+    julo::Integer,
+    jhi::Integer
 )::Nothing
-	# pressure thickness at North Pole, the psudo-density in a hydrostatic system at t1 (mb)
-	delp1n = zeros(AbstractFloat, i1:i2, (j2 - 1):j2)
-	# pressure thickness at South Pole, the psudo-density in a hydrostatic system at t1 (mb)
-	delp1s = zeros(AbstractFloat, i1:i2,  ju1:(ju1 + 1))
+    ik::Integer = il::Integer = 0
 
-	if ju1 == ju1_gl
-		delp1s[i1:i2, ju1:(ju1+1)] = dap + (dbk * pctm1[i1:i2, ju1:(ju1+1)])
+    meanq::AbstractFloat = sum1::AbstractFloat = sum2::AbstractFloat = 0
 
-		sum1 = 0.0
-		sum2 = 0.0
-		for il = i1:i2
-			sum1 = sum1 + sum(const1[il, ju1:(ju1 + 1)] * delp1s[il, ju1:(ju1 + 1)] * rel_area[ju1:(ju1 + 1)]) / (sum(rel_area) * i2_gl)
-			sum2 = sum2 + sum(delp1s[il, ju1:(ju1 + 1)] * rel_area[ju1:(ju1 + 1)]) / (sum(rel_area) * i2_gl)
-		end
+    # pressure thickness at North Pole, the psudo - density in a hydrostatic system at t1 (mb)
+    delp1n::Matrix{AbstractFloat} = zeros(i1:i2, (j2-1):j2)
+    # pressure thickness at South Pole, the psudo - density in a hydrostatic system at t1 (mb)
+    delp1s::Matrix{AbstractFloat} = zeros(i1:i2, ju1:(ju1+1))
 
-		meanq = sum1 / sum2
+    if ju1 == ju1_gl
+        delp1s[i1:i2, ju1:(ju1+1)] = dap + (dbk * pctm1[i1:i2, ju1:(ju1+1)])
 
-		const1[:, ju1:(ju1 + 1)] .= meanq
-	end
-	
-	if j2 == j2_gl
-		delp1n[i1:i2, (j2 - 1):j2] .= dap + (dbk * pctm1[i1:i2, (j2 - 1):j2])
+        sum1 = 0.0
+        sum2 = 0.0
+        for il ∈ i1:i2
+            sum1 = sum1 + sum(const1[il, ju1:(ju1+1)] * delp1s[il, ju1:(ju1+1)] * rel_area[ju1:(ju1+1)]) / (sum(rel_area) * i2_gl)
+            sum2 = sum2 + sum(delp1s[il, ju1:(ju1+1)] * rel_area[ju1:(ju1+1)]) / (sum(rel_area) * i2_gl)
+        end
 
-		sum1 = 0.0
-		sum2 = 0.0
-		for il = i1:i2
-			sum1 = sum1 + sum(const1[il, (j2 - 1):j2] * delp1n[il, (j2 - 1):j2] * rel_area[(j2 - 1):j2]) / (sum(rel_area) * i2_gl)
-			sum2 = sum2 + sum(delp1n[il, (j2 - 1):j2] * rel_area[(j2 - 1):j2]) / (sum(rel_area) * i2_gl)
-		end
+        meanq = sum1 / sum2
 
-		meanq = sum1 / sum2
+        const1[:, ju1:(ju1+1)] .= meanq
+    end
 
-		const1[:, (j2 - 1):j2] .= meanq
-	end
+    if j2 == j2_gl
+        delp1n[i1:i2, (j2-1):j2] .= dap + (dbk * pctm1[i1:i2, (j2-1):j2])
+
+        sum1 = 0.0
+        sum2 = 0.0
+        for il ∈ i1:i2
+            sum1 = sum1 + sum(const1[il, (j2-1):j2] * delp1n[il, (j2-1):j2] * rel_area[(j2-1):j2]) / (sum(rel_area) * i2_gl)
+            sum2 = sum2 + sum(delp1n[il, (j2-1):j2] * rel_area[(j2-1):j2]) / (sum(rel_area) * i2_gl)
+        end
+
+        meanq = sum1 / sum2
+
+        const1[:, (j2-1):j2] .= meanq
+    end
 end
 
 """
@@ -907,43 +914,47 @@ John Tannahill, LLNL (jrt@llnl.gov).
 """
 function set_cross_terms!(
 	crx::Matrix{AbstractFloat},
-	cry::Matrix{AbstractFloat},
-	ua::Matrix{AbstractFloat},
-	va::Matrix{AbstractFloat},
-	j1p::Integer,
-	j2p::Integer,
-	i1_gl::Integer,
-	i2_gl::Integer,
-	ju1_gl::Integer,
-	j2_gl::Integer,
-	ilo::Integer,
-	ihi::Integer,
-	julo::Integer,
-	jhi::Integer,
-	i1::Integer,
-	i2::Integer,
-	ju1::Integer,
-	j2::Integer,
-	cross::Bool
+    cry::Matrix{AbstractFloat},
+    ua::Matrix{AbstractFloat},
+    va::Matrix{AbstractFloat},
+    j1p::Integer,
+    j2p::Integer,
+    i1_gl::Integer,
+    i2_gl::Integer,
+    ju1_gl::Integer,
+    j2_gl::Integer,
+    ilo::Integer,
+    ihi::Integer,
+    julo::Integer,
+    jhi::Integer,
+    i1::Integer,
+    i2::Integer,
+    ju1::Integer,
+    j2::Integer,
+    cross::Bool
 )::Nothing
-	if !cross
-		ua[:, :] .= 0.0
-		va[:, :] .= 0.0
-	else
-		for ij = j1p:j2p
-			for il = i1:(i2 - 1)
-				ua[il, ij] = 0.5 * (crx[il, ij] + crx[il + 1, ij])
-			end
-			ua[i2, ij] = 0.5 * (crx[i2, ij] + crx[1, ij])
-		end
+    il::Integer = ij::Integer = 0
 
-		for ij = (ju1 + 1):(j2 - 1), il = i1:i2
-			va[il, ij] = 0.5 * (cry[il, ij] + cry[il, ij + 1])
-		end
-		
-		# TODO:
-		do_cross_terms_pole_i2d2!(cry, va, i1_gl, i2_gl, ju1_gl, j2_gl, j1p, ilo, ihi, julo, jhi, i1, i2, ju1, j2)
-	end
+    if !cross
+        ua[:, :] .= 0.0
+        va[:, :] .= 0.0
+    else
+        for ij ∈ j1p:j2p
+            for il ∈ i1:(i2-1)
+                ua[il, ij] = 0.5 * (crx[il, ij] + crx[il+1, ij])
+            end
+            ua[i2, ij] = 0.5 * (crx[i2, ij] + crx[1, ij])
+        end
+
+        for ij ∈ (ju1+1):(j2-1)
+            for il ∈ i1:i2
+                va[il, ij] = 0.5 * (cry[il, ij] + cry[il, ij+1])
+            end
+        end
+
+        # TODO:
+        do_cross_terms_pole_i2d2!(cry, va, i1_gl, i2_gl, ju1_gl, j2_gl, j1p, ilo, ihi, julo, jhi, i1, i2, ju1, j2)
+    end
 end
 
 """
@@ -969,38 +980,44 @@ John Tannahill, LLNL (jrt@llnl.gov).
 05 Dec 2008 - C. Carouge - Replaced TPCORE routines by S-J Lin and Kevin Yeh with the TPCORE routines from GMI model. This eliminates the polar overshoot in the stratosphere. See https://github.com/geoschem/geos-chem for complete history.
 """
 function calc_vert_mass_flux!(
-	dbk::Array{AbstractFloat},
-	dps_ctm::Matrix{AbstractFloat},
-	dpi::Array{AbstractFloat, 3},
-	wz::Array{AbstractFloat, 3},
-	i1::Integer,
-	i2::Integer,
-	ju1::Integer,
-	j2::Integer,
-	k1::Integer,
-	k2::Integer
+    dbk::Vector{AbstractFloat},
+    dps_ctm::Matrix{AbstractFloat},
+    dpi::Array{AbstractFloat,3},
+    wz::Array{AbstractFloat,3},
+    i1::Integer,
+    i2::Integer,
+    ju1::Integer,
+    j2::Integer,
+    k1::Integer,
+    k2::Integer
 )::Nothing
-	# Compute vertical mass flux from mass conservation.
+    ik::Integer = ij::Integer = il::Integer = 0
 
-	# NOTE: Translate parallel for below to parallel loop in Julia
-	# !$OMP PARALLEL DO       &
-	# !$OMP DEFAULT( SHARED ) &
-	# !$OMP PRIVATE( IJ, IL )
-	for ij = ju1:j2, il = i1:i2
-		wz[il, ij, k1] = dpi[il, ij, k1] - (dbk[k1] * dps_ctm[il, ij])
+    # Compute vertical mass flux from mass conservation.
 
-		wz[il, ij, k2] = 0.0
-	end
+    # NOTE: Translate parallel for below to parallel loop in Julia
+    # !$OMP PARALLEL DO       &
+    # !$OMP DEFAULT( SHARED ) &
+    # !$OMP PRIVATE( IJ, IL )
+    for ij ∈ ju1:j2
+        for il ∈ i1:i2
+            wz[il, ij, k1] = dpi[il, ij, k1] - (dbk[k1] * dps_ctm[il, ij])
 
-	for ik = (k1 + 1):(k2 - 1)
-		# NOTE: Translate parallel for below to parallel loop in Julia
-		# !$OMP PARALLEL DO       &
-		# !$OMP DEFAULT( SHARED ) &
-		# !$OMP PRIVATE( IJ, IL )
-		for ij = ju1:j2, il = i1:i2
-			wz[il, ij, ik] = wz[il, ij, ik - 1] + dpi[il, ij, ik] - (dbk[ik] * dps_ctm[il, ij])
-		end
-	end
+            wz[il, ij, k2] = 0.0
+        end
+    end
+
+    for ik ∈ (k1+1):(k2-1)
+        # NOTE: Translate parallel for below to parallel loop in Julia
+        # !$OMP PARALLEL DO       &
+        # !$OMP DEFAULT( SHARED ) &
+        # !$OMP PRIVATE( IJ, IL )
+        for ij ∈ ju1:j2
+            for il ∈ i1:i2
+                wz[il, ij, ik] = wz[il, ij, ik-1] + dpi[il, ij, ik] - (dbk[ik] * dps_ctm[il, ij])
+            end
+        end
+    end
 end
 
 """
@@ -1036,58 +1053,64 @@ We cannot parallelize this function because there is a CYCLE statement within th
 05 Dec 2008 - C. Carouge - Replaced TPCORE routines by S-J Lin and Kevin Yeh with the TPCORE routines from GMI model. This eliminates the polar overshoot in the stratosphere. See https://github.com/geoschem/geos-chem for complete history.
 """
 function set_jn_js!(
-	jn::Array{AbstractFloat},
-	js::Array{AbstractFloat},
-	crx::Array{AbstractFloat, 3},
-	ilo::Integer,
-	ihi::Integer,
-	julo::Integer,
-	jhi::Integer,
-	ju1_gl::Integer,
-	j2_gl::Integer,
-	j1p::Integer,
-	j2p::Integer,
-	i1::Integer,
-	i2::Integer,
-	ju1::Integer,
-	j2::Integer,
-	k1::Integer,
-	k2::Integer
+    jn::Vector{AbstractFloat},
+    js::Vector{AbstractFloat},
+    crx::Array{AbstractFloat,3},
+    ilo::Integer,
+    ihi::Integer,
+    julo::Integer,
+    jhi::Integer,
+    ju1_gl::Integer,
+    j2_gl::Integer,
+    j1p::Integer,
+    j2p::Integer,
+    i1::Integer,
+    i2::Integer,
+    ju1::Integer,
+    j2::Integer,
+    k1::Integer,
+    k2::Integer
 )::Nothing
-	js0 = (j2_gl + 1) / 2
-	jn0 = j2_gl - js0 + 1
+    il::Integer = ij::Integer = ik::Integer = 0
 
-	jst = max(ju1, j1p)
-	jend = min(j2, js0)
+    js0::Integer = (j2_gl + 1) / 2
+    jn0::Integer = j2_gl - js0 + 1
 
-	for ik = k1:k2
-		js[ik] = j1p
+    jst::Integer = max(ju1, j1p)
+    jend::Integer = min(j2, js0)
 
-		for ij = jend:-1:jst, il = i1:i2
-			if abs(crx[il, ij, ik]) > 1.0
-				js[ik] = ij
-				
-				@goto ikloop1
-			end
-		end
-		@label ikloop1
-	end
+    for ik ∈ k1:k2
+        js[ik] = j1p
 
-	jst = max(ju1, jn0)
-	jend = min(j2, j2p)
+        for ij ∈ jend:-1:jst
+            for il ∈ i1:i2
+                if abs(crx[il, ij, ik]) > 1.0
+                    js[ik] = ij
 
-	for ik = k1:k2
-		jn[ik] = j2p
+                    @goto ikloop1
+                end
+            end
+        end
+        @label ikloop1
+    end
 
-		for ij = jst:jend, il = i1:i2
-			if abs(crx[il, ij, ik]) > 1.0
-				jn[ik] = ij
-				
-				@goto ikloop2
-			end
-		end
-		@label ikloop2
-	end
+    jst = max(ju1, jn0)
+    jend = min(j2, j2p)
+
+    for ik ∈ k1:k2
+        jn[ik] = j2p
+
+        for ij ∈ jst:jend
+            for il ∈ i1:i2
+                if abs(crx[il, ij, ik]) > 1.0
+                    jn[ik] = ij
+
+                    @goto ikloop2
+                end
+            end
+        end
+        @label ikloop2
+    end
 end
 
 """
@@ -1124,94 +1147,100 @@ John Tannahill, LLNL (jrt@llnl.gov).
 05 Dec 2008 - C. Carouge - Replaced TPCORE routines by S-J Lin and Kevin Yeh with the TPCORE routines from GMI model. This eliminates the polar overshoot in the stratosphere. See https://github.com/geoschem/geos-chem for complete history.
 """
 function calc_advec_cross_terms!(
-	jn::Integer,
-	js::Integer,
-	qq1::Matrix{AbstractFloat},
-	qqu::Matrix{AbstractFloat},
-	qqv::Matrix{AbstractFloat},
-	ua::Matrix{AbstractFloat},
-	va::Matrix{AbstractFloat},
-	j1p::Integer,
-	j2p::Integer,
-	i2_gl::Integer,
-	ju1_gl::Integer,
-	j2_gl::Integer,
-	ilo::Integer,
-	ihi::Integer,
-	julo::Integer,
-	jhi::Integer,
-	i1::Integer,
-	i2::Integer,
-	ju1::Integer,
-	j2::Integer,
-	cross::Bool
+    jn::Integer,
+    js::Integer,
+    qq1::Matrix{AbstractFloat},
+    qqu::Matrix{AbstractFloat},
+    qqv::Matrix{AbstractFloat},
+    ua::Matrix{AbstractFloat},
+    va::Matrix{AbstractFloat},
+    j1p::Integer,
+    j2p::Integer,
+    i2_gl::Integer,
+    ju1_gl::Integer,
+    j2_gl::Integer,
+    ilo::Integer,
+    ihi::Integer,
+    julo::Integer,
+    jhi::Integer,
+    i1::Integer,
+    i2::Integer,
+    ju1::Integer,
+    j2::Integer,
+    cross::Bool
 )::Nothing
-	qtmp = zeros(AbstractFloat, (-i2 / 3):(i2 + i2 / 3), julo:jhi)
+    i::Integer = imp::Integer = il::Integer = ij::Integer = iu::Integer = jv::Integer = iuw::Integer = iue::Integer = 0
 
-	for ij = julo:jhi
-		for i = 1:i2
-			qtmp[i, ij] = qq1[i, ij]
-		end
+    ril::AbstractFloat = rij::AbstractFloat = riu::AbstractFloat = ru::AbstractFloat = 0
 
-		for il = (-i2 / 3):0
-			qtmp[il, ij] = qq1[i2 + il, ij]
-		end
+    qtmp::Matrix{AbstractFloat} = zeros((-i2/3):(i2+i2/3), julo:jhi)
 
-		for il = (i2 + 1):(i2 + i2 / 3)
-			qtmp[il, ij] = qq1[il - i2, ij]
-		end
-	end
+    for ij ∈ julo:jhi
+        for i ∈ 1:i2
+            qtmp[i, ij] = qq1[i, ij]
+        end
 
-	if !cross
-		qqv[:, :] .= qq1[:, :]
-		qqu[:, :] .= qq1[:, :]
-	else
-		qqu[:, :] .= 0.0
-		qqv[:, :] .= 0.0
+        for il ∈ (-i2/3):0
+            qtmp[il, ij] = qq1[i2+il, ij]
+        end
 
-		for ij = j1p:j2p
-			if ij <= js || ij >= jn
-				# In Polar area, so need to deal with large courant numbers.
-				for il = i1:i2
-					# !c?
-					iu = ua[il, ij]
-					riu = iu
-					ru = ua[il, ij] - riu
-					iu = il - iu
+        for il ∈ (i2+1):(i2+i2/3)
+            qtmp[il, ij] = qq1[il-i2, ij]
+        end
+    end
 
-					if ua[il, ij] >= 0.0
-						qqu[il, ij] = qtmp[iu, ij] + ru * (qtmp[iu - 1, ij] - qtmp[iu, ij])
-					else
-						qqu[il, ij] = qtmp[iu, ij] + ru * (qtmp[iu, ij] - qtmp[iu + 1, ij])
-					end
+    if !cross
+        qqv[:, :] .= qq1[:, :]
+        qqu[:, :] .= qq1[:, :]
+    else
+        qqu[:, :] .= 0.0
+        qqv[:, :] .= 0.0
 
-					qqu[il, ij] = qqu[il, ij] - qtmp[il, ij]
-				end
-			else # js < ij < jn
-				# Do interior area (use PPM).
+        for ij ∈ j1p:j2p
+            if ij <= js || ij >= jn
+                # In Polar area, so need to deal with large courant numbers.
+                for il ∈ i1:i2
+                    # !c?
+                    iu = ua[il, ij]
+                    riu = iu
+                    ru = ua[il, ij] - riu
+                    iu = il - iu
 
-				for il = i1:i2
-					ril = il
-					iu = ril - ua[il, ij]
+                    if ua[il, ij] >= 0.0
+                        qqu[il, ij] = qtmp[iu, ij] + ru * (qtmp[iu-1, ij] - qtmp[iu, ij])
+                    else
+                        qqu[il, ij] = qtmp[iu, ij] + ru * (qtmp[iu, ij] - qtmp[iu+1, ij])
+                    end
 
-					qqu[il, ij] = ua[il, ij] * (qtmp[iu, ij] - qtmp[iu + 1, ij])
-				end
-			end
+                    qqu[il, ij] = qqu[il, ij] - qtmp[il, ij]
+                end
+            else # js < ij < jn
+                # Do interior area (use PPM).
 
-			for il = i1:i2
-				# !c?
-				rij = ij
-				jv = rij - va[il, ij]
+                for il ∈ i1:i2
+                    ril = il
+                    iu = ril - ua[il, ij]
 
-				qqv[il, ij] = va[il, ij] * (qtmp[il, jv] - qtmp[il, jv + 1])
-			end
-		end
+                    qqu[il, ij] = ua[il, ij] * (qtmp[iu, ij] - qtmp[iu+1, ij])
+                end
+            end
 
-		for ij = ju1:j2, il = i1:i2
-			qqu[il, ij] = qtmp[il, ij] + (0.5 * qqu[il, ij])
-			qqv[il, ij] = qtmp[il, ij] + (0.5 * qqv[il, ij])
-		end
-	end
+            for il ∈ i1:i2
+                # !c?
+                rij = ij
+                jv = rij - va[il, ij]
+
+                qqv[il, ij] = va[il, ij] * (qtmp[il, jv] - qtmp[il, jv+1])
+            end
+        end
+
+        for ij ∈ ju1:j2
+            for il ∈ i1:i2
+                qqu[il, ij] = qtmp[il, ij] + (0.5 * qqu[il, ij])
+                qqv[il, ij] = qtmp[il, ij] + (0.5 * qqv[il, ij])
+            end
+        end
+    end
 end
 
 """
@@ -1242,99 +1271,107 @@ John Tannahill, LLNL (jrt@llnl.gov).
 Dec 2008 - C. Carouge - Replaced TPCORE routines by S-J Lin and Kevin Yeh with the TPCORE routines from GMI model. This eliminates the polar overshoot in the stratosphere. See https://github.com/geoschem/geos-chem for complete history.
 """
 function qckxyz!(
-	dq1::Array{AbstractFloat, 3},
-	j1p::Integer,
-	j2p::Integer,
-	ju1_gl::Integer,
-	j2_gl::Integer,
-	ilo::Integer,
-	ihi::Integer,
-	julo::Integer,
-	jhi::Integer,
-	i1::Integer,
-	i2::Integer,
-	ju1::Integer,
-	j2::Integer,
-	k1::Integer,
-	k2::Integer
+    dq1::Array{AbstractFloat,3},
+    j1p::Integer,
+    j2p::Integer,
+    ju1_gl::Integer,
+    j2_gl::Integer,
+    ilo::Integer,
+    ihi::Integer,
+    julo::Integer,
+    jhi::Integer,
+    i1::Integer,
+    i2::Integer,
+    ju1::Integer,
+    j2::Integer,
+    k1::Integer,
+    k2::Integer
 )::Nothing
-	fill_diag = false
-	
-	ip = 0
-	
-	# Top layer.
+    il::Integer = ij::Integer = ik::Integer = ip::Integer = k1p1::Integer = k2m1::Integer = 0
 
-	k1p1 = k1 + 1
+    dup::AbstractFloat = qup::AbstractFloat = qly::AbstractFloat = sum::AbstractFloat = 0
 
-	# NOTE: Translate parallel for below to parallel loop in Julia
-	# !$OMP PARALLEL DO          &
-	# !$OMP DEFAULT( SHARED )    &
-	# !$OMP PRIVATE( IJ, IL, IP )
-	for ij = j1p:j2p, il = i1:i2
-		if dq1[il, ij, k1] < 0.0
-			ip = ip + 1
+    const fill_diag = false
 
-			dq1[il, ij, k1p1] = dq1[il, ij, k1p1] + dq1[il, ij, k1]
-			dq1[il, ij, k1] = 0.0
-		end
-	end
-	
-	for ik = (k1 + 1):(k2 - 1)
-		# NOTE: Translate parallel for below to parallel loop in Julia
-		# !$OMP PARALLEL DO                         &
-		# !$OMP DEFAULT( SHARED )                   &
-		# !$OMP PRIVATE( IJ, IL, IP, QUP, QLY, DUP )
-		for ij = j1p:j2p, il = i1:i2
-			if dq1[il, ij, ik] < 0.0
-				ip = ip + 1
-				
-				# From above.
+    # Top layer.
 
-				qup = dq1[il, ij, ik - 1]
-				qly = -dq1[il, ij, ik]
-				dup = min(qly, qup)
+    k1p1 = k1 + 1
 
-				dq1[il, ij, ik - 1] = qup - dup
-				dq1[il, ij, ik] = dup - qly
-				
-				# From below.
+    # NOTE: Translate parallel for below to parallel loop in Julia
+    # !$OMP PARALLEL DO          &
+    # !$OMP DEFAULT( SHARED )    &
+    # !$OMP PRIVATE( IJ, IL, IP )
+    for ij ∈ j1p:j2p
+        for il ∈ i1:i2
+            if dq1[il, ij, k1] < 0.0
+                ip = ip + 1
 
-				dq1[il, ij, ik + 1] = dq1[il, ij, ik + 1] + dq1[il, ij, ik]
-				dq1[il, ij, ik] = 0.0
-			end
-		end
-	end
+                dq1[il, ij, k1p1] = dq1[il, ij, k1p1] + dq1[il, ij, k1]
+                dq1[il, ij, k1] = 0.0
+            end
+        end
+    end
 
-	# Bottom layer.
+    for ik ∈ (k1+1):(k2-1)
+        # NOTE: Translate parallel for below to parallel loop in Julia
+        # !$OMP PARALLEL DO                         &
+        # !$OMP DEFAULT( SHARED )                   &
+        # !$OMP PRIVATE( IJ, IL, IP, QUP, QLY, DUP )
+        for ij ∈ j1p:j2p
+            for il ∈ i1:i2
+                if dq1[il, ij, ik] < 0.0
+                    ip = ip + 1
 
-	sum  = 0.0
-	k2m1 = k2 - 1
+                    # From above.
 
-	# NOTE: Translate parallel for below to parallel sum in Julia
-	# NOTE: Sum seems to be not used in the loop below!
-	# !$OMP PARALLEL DO                          &
-	# !$OMP DEFAULT( SHARED )                    &
-	# !$OMP PRIVATE( IJ, IL, IP, QUP, QLY, DUP ) &
-	# !$OMP REDUCTION( +:SUM )
-	for ij = j1p:j2p, il = i1:i2
-		if dq1[il, ij, k2] < 0.0
-			ip = ip + 1
-			
-			# From above.
+                    qup = dq1[il, ij, ik-1]
+                    qly = -dq1[il, ij, ik]
+                    dup = min(qly, qup)
 
-			qup = dq1[il, ij, k2m1]
-			qly = -dq1[il, ij, k2]
-			dup = min[qly, qup]
+                    dq1[il, ij, ik-1] = qup - dup
+                    dq1[il, ij, ik] = dup - qly
 
-			dq1[il, ij, k2m1] = qup - dup
-			
-			# From "below" the surface.
+                    # From below.
 
-			sum = sum + qly - dup
+                    dq1[il, ij, ik+1] = dq1[il, ij, ik+1] + dq1[il, ij, ik]
+                    dq1[il, ij, ik] = 0.0
+                end
+            end
+        end
+    end
 
-			dq1[il, ij, k2] = 0.0
-		end
-	end
+    # Bottom layer.
+
+    sum = 0.0
+    k2m1 = k2 - 1
+
+    # NOTE: Translate parallel for below to parallel sum in Julia
+    # NOTE: Sum seems to be not used in the loop below!
+    # !$OMP PARALLEL DO                          &
+    # !$OMP DEFAULT( SHARED )                    &
+    # !$OMP PRIVATE( IJ, IL, IP, QUP, QLY, DUP ) &
+    # !$OMP REDUCTION( +:SUM )
+    for ij ∈ j1p:j2p
+        for il ∈ i1:i2
+            if dq1[il, ij, k2] < 0.0
+                ip = ip + 1
+
+                # From above.
+
+                qup = dq1[il, ij, k2m1]
+                qly = -dq1[il, ij, k2]
+                dup = min[qly, qup]
+
+                dq1[il, ij, k2m1] = qup - dup
+
+                # From "below" the surface.
+
+                sum = sum + qly - dup
+
+                dq1[il, ij, k2] = 0.0
+            end
+        end
+    end
 
 	# We don"t want to replace zero values by 1e-30. (ccc, 11/20/08)
 	#   where ((dq1(i1:i2,j1p:j2p,:) < 1.0d-30)) &
@@ -1362,44 +1399,44 @@ John Tannahill, LLNL (jrt@llnl.gov).
 05 Dec 2008 - C. Carouge - Replaced TPCORE routines by S-J Lin and Kevin Yeh with the TPCORE routines from GMI model. This eliminates the polar overshoot in the stratosphere. See https://github.com/geoschem/geos-chem for complete history.
 """
 function set_lmts!(
-	ilmt::Integer,
-	jlmt::Integer,
-	klmt::Integer,
-	i2_gl::Integer,
-	j2_gl::Integer,
-	iord::Integer,
-	jord::Integer,
-	kord::Integer
+    ilmt::Integer,
+    jlmt::Integer,
+    klmt::Integer,
+    i2_gl::Integer,
+    j2_gl::Integer,
+    iord::Integer,
+    jord::Integer,
+    kord::Integer
 )::Nothing
-	j2_glm1 = j2_gl - 1
+    j2_glm1::Integer = j2_gl - 1
 
-	# !c?
-	if iord <= 0
-		if i2_gl >= 144
-			ilmt = 0
-		elseif i2_gl >= 72
-			ilmt = 1
-		else
-			ilmt = 2
-		end
-	else
-		ilmt = iord - 3
-	end
+    # !c?
+    if iord <= 0
+        if i2_gl >= 144
+            ilmt = 0
+        elseif i2_gl >= 72
+            ilmt = 1
+        else
+            ilmt = 2
+        end
+    else
+        ilmt = iord - 3
+    end
 
-	# !c?
-	if jord <= 0
-		if j2_glm1 >= 90
-			jlmt = 0
-		elseif j2_glm1 >= 45
-			jlmt = 1
-		else
-			jlmt = 2
-		end
-	else
-		jlmt = jord - 3
-	end
+    # !c?
+    if jord <= 0
+        if j2_glm1 >= 90
+            jlmt = 0
+        elseif j2_glm1 >= 45
+            jlmt = 1
+        else
+            jlmt = 2
+        end
+    else
+        jlmt = jord - 3
+    end
 
-	klmt = max(kord - 3, 0)
+    klmt = max(kord - 3, 0)
 end
 
 """
@@ -1435,35 +1472,37 @@ John Tannahill, LLNL (jrt@llnl.gov).
 """
 function set_press_terms!(
 	dap::AbstractFloat,
-	dbk::AbstractFloat,
-	pres1::Matrix{AbstractFloat},
-	pres2::Matrix{AbstractFloat},
-	delp1::Matrix{AbstractFloat},
-	delpm::Matrix{AbstractFloat},
-	pu::Matrix{AbstractFloat},
-	ju1_gl::Integer,
-	j2_gl::Integer,
-	ilo::Integer,
-	ihi::Integer,
-	julo::Integer,
-	jhi::Integer,
-	j1p::Integer,
-	j2p::Integer,
-	i1::Integer,
-	i2::Integer,
-	ju1::Integer,
-	j2::Integer
+    dbk::AbstractFloat,
+    pres1::Matrix{AbstractFloat},
+    pres2::Matrix{AbstractFloat},
+    delp1::Matrix{AbstractFloat},
+    delpm::Matrix{AbstractFloat},
+    pu::Matrix{AbstractFloat},
+    ju1_gl::Integer,
+    j2_gl::Integer,
+    ilo::Integer,
+    ihi::Integer,
+    julo::Integer,
+    jhi::Integer,
+    j1p::Integer,
+    j2p::Integer,
+    i1::Integer,
+    i2::Integer,
+    ju1::Integer,
+    j2::Integer
 )::Nothing
-	delp1[:, :] .= dap + (dbk * pres1[:, :])
+    il::Integer = ij::Integer = 0
 
-	delpm[:, :] .= dap + (dbk * 0.5 * (pres1[:, :] + pres2[:, :]))
-	
-	for ij = j1p:j2p
-		pu[1, ij] = 0.5 * (delpm[1, ij] + delpm[i2, ij])
-		for il = (i1 + 1):i2
-			pu[il, ij] = 0.5 * (delpm[il, ij] + delpm[il - 1, ij])
-		end
-	end
+    delp1[:, :] .= dap + (dbk * pres1[:, :])
+
+    delpm[:, :] .= dap + (dbk * 0.5 * (pres1[:, :] + pres2[:, :]))
+
+    for ij ∈ j1p:j2p
+        pu[1, ij] = 0.5 * (delpm[1, ij] + delpm[i2, ij])
+        for il ∈ (i1+1):i2
+            pu[il, ij] = 0.5 * (delpm[il, ij] + delpm[il-1, ij])
+        end
+    end
 end
 
 """
@@ -1498,38 +1537,40 @@ John Tannahill, LLNL (jrt@llnl.gov).
 05 Dec 2008 - C. Carouge - Replaced TPCORE routines by S-J Lin and Kevin Yeh with the TPCORE routines from GMI model. This eliminates the polar overshoot in the stratosphere. See https://github.com/geoschem/geos-chem for complete history.
 """
 function calc_courant!(
-	cose::Array{AbstractFloat},
-	delpm::Matrix{AbstractFloat},
-	pu::Matrix{AbstractFloat},
-	xmass::Matrix{AbstractFloat},
-	ymass::Matrix{AbstractFloat},
-	crx::Matrix{AbstractFloat},
-	cry::Matrix{AbstractFloat},
-	j1p::Integer,
-	j2p::Integer,
-	ju1_gl::Integer,
-	j2_gl::Integer,
-	ilo::Integer,
-	ihi::Integer,
-	julo::Integer,
-	jhi::Integer,
-	i1::Integer,
-	i2::Integer,
-	ju1::Integer,
-	j2::Integer
+    cose::Vector{AbstractFloat},
+    delpm::Matrix{AbstractFloat},
+    pu::Matrix{AbstractFloat},
+    xmass::Matrix{AbstractFloat},
+    ymass::Matrix{AbstractFloat},
+    crx::Matrix{AbstractFloat},
+    cry::Matrix{AbstractFloat},
+    j1p::Integer,
+    j2p::Integer,
+    ju1_gl::Integer,
+    j2_gl::Integer,
+    ilo::Integer,
+    ihi::Integer,
+    julo::Integer,
+    jhi::Integer,
+    i1::Integer,
+    i2::Integer,
+    ju1::Integer,
+    j2::Integer
 )::Nothing
-	crx[:, :] .= 0.0
+    ij::Integer = 0
+
+    crx[:, :] .= 0.0
 	cry[:, :] .= 0.0
 	
 	# Calculate E-W and N-S horizontal mass fluxes.
 
-	for ij = j1p:j2p
-		crx[:, ij] = xmass[:, ij] / pu[:, ij]
+    for ij ∈ j1p:j2p
+        crx[:, ij] = xmass[:, ij] / pu[:, ij]
 
-		cry[:, ij] .= ymass[:, ij] / ((0.5 * cose[ij]) * (delpm[:, ij] + delpm[:, ij - 1]))
-	end
+        cry[:, ij] .= ymass[:, ij] / ((0.5 * cose[ij]) * (delpm[:, ij] + delpm[:, ij-1]))
+    end
 
-	cry[:, j2p + 1] .= ymass[:, j2p + 1] / ((0.5 * cose[j2p + 1]) * (delpm[:, j2p + 1] + delp[:, j2p]))
+    cry[:, j2p+1] .= ymass[:, j2p+1] / ((0.5 * cose[j2p+1]) * (delpm[:, j2p+1] + delp[:, j2p]))
 end
 
 """
@@ -1566,50 +1607,52 @@ John Tannahill, LLNL (jrt@llnl.gov).
 05 Dec 2008 - C. Carouge - Replaced TPCORE routines by S-J Lin and Kevin Yeh with the TPCORE routines from GMI model. This eliminates the polar overshoot in the stratosphere. See https://github.com/geoschem/geos-chem for complete history.
 """
 function calc_divergence!(
-	do_reduction::Bool,
-	geofac_pc::AbstractFloat,
-	geofac::Array{AbstractFloat},
-	dpi::Matrix{AbstractFloat},
-	xmass::Matrix{AbstractFloat},
-	ymass::Matrix{AbstractFloat},
-	j1p::Integer,
-	j2p::Integer,
-	i1_gl::Integer,
-	i2_gl::Integer,
-	ju1_gl::Integer,
-	j2_gl::Integer,
-	ilo::Integer,
-	ihi::Integer,
-	julo::Integer,
-	jhi::Integer,
-	i1::Integer,
-	i2::Integer,
-	ju1::Integer,
-	j2::Integer
+    do_reduction::Bool,
+    geofac_pc::AbstractFloat,
+    geofac::Vector{AbstractFloat},
+    dpi::Matrix{AbstractFloat},
+    xmass::Matrix{AbstractFloat},
+    ymass::Matrix{AbstractFloat},
+    j1p::Integer,
+    j2p::Integer,
+    i1_gl::Integer,
+    i2_gl::Integer,
+    ju1_gl::Integer,
+    j2_gl::Integer,
+    ilo::Integer,
+    ihi::Integer,
+    julo::Integer,
+    jhi::Integer,
+    i1::Integer,
+    i2::Integer,
+    ju1::Integer,
+    j2::Integer
 )::Nothing
-	# Calculate N-S divergence.
+    il::Integer = ij::Integer = 0
 
-	for ij = j1p:j2p
-		dpi[:, ij] .= (ymass[:, ij] - ymass[:, ij + 1]) * geofac[ij]
+    # Calculate N - S divergence.
 
-		# Calculate E-W divergence.
-		
-		for il = i1:(i2 - 1)
-			dpi[il, ij] = dpi[il, ij] + xmass[il, ij] - xmass[il + 1, ij]
-		end
+    for ij ∈ j1p:j2p
+        dpi[:, ij] .= (ymass[:, ij] - ymass[:, ij+1]) * geofac[ij]
 
-		dpi[i2, ij] = dpi[i2, ij] + xmass[i2, ij] - xmass[1, ij]
-	end
+        # Calculate E - W divergence.
 
-	# TODO:
-	do_divergence_pole_sum!(do_reduction, geofac_pc, dpi, ymass, i1_gl, i2_gl, j1p, j2p, ju1_gl, j2_gl, ilo, ihi, julo, jhi, i1, i2, ju1, j2)
-	
-	if j1p != ju1_gl + 1
-		# Polar cap enlarged:  copy dpi to polar ring.
-		
-		dpi[:, ju1 + 1] .= dpi[:, ju1]
-		dpi[:, j2 - 1] .= dpi[:, j2]
-	end
+        for il ∈ i1:(i2-1)
+            dpi[il, ij] = dpi[il, ij] + xmass[il, ij] - xmass[il+1, ij]
+        end
+
+        dpi[i2, ij] = dpi[i2, ij] + xmass[i2, ij] - xmass[1, ij]
+    end
+
+    # TODO:
+    do_divergence_pole_sum!(do_reduction, geofac_pc, dpi, ymass, i1_gl, i2_gl, j1p, j2p, ju1_gl, j2_gl, ilo, ihi, julo, jhi, i1, i2, ju1, j2)
+
+    if j1p != ju1_gl + 1
+        # Polar cap enlarged:  copy dpi to polar ring.
+
+        dpi[:, ju1+1] .= dpi[:, ju1]
+        dpi[:, j2-1] .= dpi[:, j2]
+    end
 end
 
 """
@@ -1645,52 +1688,56 @@ John Tannahill, LLNL (jrt@llnl.gov).
 """
 function do_divergence_pole_sum!(
 	do_reduction::Bool,
-	geofac_pc::AbstractFloat,
-	dpi::Matrix{AbstractFloat},
-	ymass::Matrix{AbstractFloat},
-	i1_gl::Integer,
-	i2_gl::Integer,
-	j1p::Integer,
-	j2p::Integer,
-	ju1_gl::Integer,
-	j2_gl::Integer,
-	ilo::Integer,
-	ihi::Integer,
-	julo::Integer,
-	jhi::Integer,
-	i1::Integer,
-	i2::Integer,
-	ju1::Integer,
-	j2::Integer
+    geofac_pc::AbstractFloat,
+    dpi::Matrix{AbstractFloat},
+    ymass::Matrix{AbstractFloat},
+    i1_gl::Integer,
+    i2_gl::Integer,
+    j1p::Integer,
+    j2p::Integer,
+    ju1_gl::Integer,
+    j2_gl::Integer,
+    ilo::Integer,
+    ihi::Integer,
+    julo::Integer,
+    jhi::Integer,
+    i1::Integer,
+    i2::Integer,
+    ju1::Integer,
+    j2::Integer
 )::Nothing
-	ri2 = i2_gl
-	
-	if ju1 == ju1_gl
-		sumsp = 0.0
-		for il = i1:i2
-			sumsp = sumsp + ymass[il, j1p]
-		end
+    il::Integer = 0
 
-		mean_sp = -sumsp / ri2 * geofac_pc
+    mean_np::AbstractFloat = mean_sp::AbstractFloat = sumnp::AbstractFloat = sumsp::AbstractFloat = 0
 
-		for il = i1:i2
-			dpi[il, ju1] = mean_sp
-		end
-	end
-		
-	if j2 == j2_gl
-		sumnp = 0.0
+    ri2::AbstractFloat = i2_gl
 
-		for il = i1:i2
-			sumnp = sumnp + ymass[il, j2p + 1]
-		end
+    if ju1 == ju1_gl
+        sumsp = 0.0
+        for il ∈ i1:i2
+            sumsp = sumsp + ymass[il, j1p]
+        end
 
-		mean_np = sumnp / ri2 * geofac_pc
+        mean_sp = -sumsp / ri2 * geofac_pc
 
-		for il = i1:i2
-			dpi[il, j2] = mean_np
-		end
-	end
+        for il ∈ i1:i2
+            dpi[il, ju1] = mean_sp
+        end
+    end
+
+    if j2 == j2_gl
+        sumnp = 0.0
+
+        for il ∈ i1:i2
+            sumnp = sumnp + ymass[il, j2p+1]
+        end
+
+        mean_np = sumnp / ri2 * geofac_pc
+
+        for il ∈ i1:i2
+            dpi[il, j2] = mean_np
+        end
+    end
 end
 
 """
@@ -1722,40 +1769,41 @@ John Tannahill, LLNL (jrt@llnl.gov).
 """
 function do_cross_terms_pole_i2d2!(
 	cry::Matrix{AbstractFloat},
-	va::Matrix{AbstractFloat},
-	i1_gl::Integer,
-	i2_gl::Integer,
-	ju1_gl::Integer,
-	j2_gl::Integer,
-	j1p::Integer,
-	ilo::Integer,
-	ihi::Integer,
-	julo::Integer,
-	jhi::Integer,
-	i1::Integer,
-	i2::Integer,
-	ju1::Integer,
-	j2::Integer
+    va::Matrix{AbstractFloat},
+    i1_gl::Integer,
+    i2_gl::Integer,
+    ju1_gl::Integer,
+    j2_gl::Integer,
+    j1p::Integer,
+    ilo::Integer,
+    ihi::Integer,
+    julo::Integer,
+    jhi::Integer,
+    i1::Integer,
+    i2::Integer,
+    ju1::Integer,
+    j2::Integer
 )::Nothing
-	i2d2 = i2_gl / 2
-	
-	if j1p == ju1_gl + 1
-		# Polar Cap NOT Enlarged: Get cross terms for N-S horizontal advection.
-		
-		if ju1 == ju1_gl
-			for il = i1:i2d2
-				va[il, ju1] = 0.5 * (cry[il, ju1 + 1] - cry[il + i2d2, ju1 + 1])
-				va[il + i2d2, ju1] = -va[il, ju1]
-			end
-		end
+    il::Integer = 0
+    i2d2::Integer = i2_gl / 2
 
-		if j2 == j2_gl
-			for il = i1:i2d2
-				va[il, j2] = 0.5 * (cry[il, j2] - cry[il + i2d2, j2 - 1])
-				va[il + i2d2, j2] = -va[il, j2]
-			end
-		end
-	end
+    if j1p == ju1_gl + 1
+        # Polar Cap NOT Enlarged: Get cross terms for N - S horizontal advection.
+
+        if ju1 == ju1_gl
+            for il ∈ i1:i2d2
+                va[il, ju1] = 0.5 * (cry[il, ju1+1] - cry[il+i2d2, ju1+1])
+                va[il+i2d2, ju1] = -va[il, ju1]
+            end
+        end
+
+        if j2 == j2_gl
+            for il ∈ i1:i2d2
+                va[il, j2] = 0.5 * (cry[il, j2] - cry[il+i2d2, j2-1])
+                va[il+i2d2, j2] = -va[il, j2]
+            end
+        end
+    end
 end
 
 """
@@ -1792,129 +1840,133 @@ John Tannahill, LLNL (jrt@llnl.gov).
 """
 function xadv_dao2!(
 	iad::Integer,
-	jn::Integer,
-	js::Integer,
-	adx::Matrix{AbstractFloat},
-	qqv::Matrix{AbstractFloat},
-	ua::Matrix{AbstractFloat},
-	ilo::Integer,
-	ihi::Integer,
-	julo::Integer,
-	jhi::Integer,
-	ju1_gl::Integer,
-	j2_gl::Integer,
-	j1p::Integer,
-	j2p::Integer,
-	i1::Integer,
-	i2::Integer,
-	ju1::Integer,
-	j2::Integer
+    jn::Integer,
+    js::Integer,
+    adx::Matrix{AbstractFloat},
+    qqv::Matrix{AbstractFloat},
+    ua::Matrix{AbstractFloat},
+    ilo::Integer,
+    ihi::Integer,
+    julo::Integer,
+    jhi::Integer,
+    ju1_gl::Integer,
+    j2_gl::Integer,
+    j1p::Integer,
+    j2p::Integer,
+    i1::Integer,
+    i2::Integer,
+    ju1::Integer,
+    j2::Integer
 )::Nothing
-	qtmp = zeros(AbstractFloat, (i2 / 3):(i2 + i2 / 3), julo:jhi)
+    il::Integer = ij::Integer = iu::Integer = imp::Integer = iue::Integer = iuw::Integer = 0
 
-	# Zero output array
-	adx = 0
-	for ij = julo:jhi
-		for il = 1:i2
-			qtmp[il, ij] = qqv[il, ij]
-		end
+    a1::AbstractFloat = b1::AbstractFloat = c1::AbstractFloat = rdiff::AbstractFloat = ril::AbstractFloat = riu::AbstractFloat = ru::AbstractFloat = 0
 
-		for il = (-i2 / 3):0
-			qtmp[il, ij] = qqv[i2 + il, ij]
-		end
+    qtmp::Matrix{AbstractFloat} = zeros((i2/3):(i2+i2/3), julo:jhi)
 
-		for il = (i2 + 1):(i2 + i2 / 3)
-			qtmp[il, ij] = qqv[il - i2, ij]
-		end
-	end
-			
-	if iad == 1
-		# 1st order.
-		
-		for ij = j1p:j2p
-			if ij <= js || ij >= jn
-				# In Polar area.
+    # Zero output array
+    adx = 0
+    for ij ∈ julo:jhi
+        for il ∈ 1:i2
+            qtmp[il, ij] = qqv[il, ij]
+        end
 
-				for il = i1:i2
-					iu = ua[il, ij]
-					riu = iu
-					ru = ua[il, ij] - riu
-					iu = il - iu
+        for il ∈ (-i2/3):0
+            qtmp[il, ij] = qqv[i2+il, ij]
+        end
 
-					if ua[il, ij] >= 0.0
-						rdiff = qtmp[iu - 1, ij] - qtmp[iu, ij]
-					else
-						rdiff = qtmp[iu, ij] - qtmp[iu + 1, ij]
-					end
+        for il ∈ (i2+1):(i2+i2/3)
+            qtmp[il, ij] = qqv[il-i2, ij]
+        end
+    end
 
-					adx[il, ij] = (qtmp[iu, ij] - qtmp[il, ij]) + (ru * rdiff)
-				end
-			else # js < ij < jn
-				# Eulerian upwind.
-				
-				for il = i1:i2
-					ril = il
-					iu = ril - ua[il, ij]
-					
-					adx[il, ij] = ua[il, ij] * (qtmp[iu, ij] - qtmp[iu + 1, ij])
-				end
-			end
-		end
-	elseif iad == 2
-		for ij = j1p:j2p
-			if ij <= js || ij >= jn
-				# In Polar area.
-				
-				for il = i1:i2
-					iu = round(ua[il, ij])
-					riu = iu
-					ru = riu - ua[il, ij]
-					iu = il - iu
+    if iad == 1
+        # 1st order.
 
-					a1 = 0.5 * (qtmp[iu + 1, ij] + qtmp[iu - 1, ij]) - qtmp[iu, ij]
+        for ij ∈ j1p:j2p
+            if ij <= js || ij >= jn
+                # In Polar area.
 
-					b1 = 0.5 * (qtmp[iu + 1, ij] - qtmp[iu - 1, ij])
+                for il ∈ i1:i2
+                    iu = ua[il, ij]
+                    riu = iu
+                    ru = ua[il, ij] - riu
+                    iu = il - iu
 
-					c1 = qtmp[iu, ij] - qtmp[il, ij]
+                    if ua[il, ij] >= 0.0
+                        rdiff = qtmp[iu-1, ij] - qtmp[iu, ij]
+                    else
+                        rdiff = qtmp[iu, ij] - qtmp[iu+1, ij]
+                    end
 
-					adx[il, ij] = (ru * ((a1 * ru) + b1)) + c1
-				end
-			else # js < ij < jn
-				# Eulerian upwind.
+                    adx[il, ij] = (qtmp[iu, ij] - qtmp[il, ij]) + (ru * rdiff)
+                end
+            else # js < ij < jn
+                # Eulerian upwind.
 
-				for il = i1:i2
-					iu = round(ua[il, ij])
-					riu = iu
-					ru = riu - ua[il, ij]
-					iu = il - iu
+                for il ∈ i1:i2
+                    ril = il
+                    iu = ril - ua[il, ij]
 
-					a1 = 0.5 * (qtmp[iu + 1, ij] + qtmp[iu - 1, ij]) - qtmp[iu, ij]
+                    adx[il, ij] = ua[il, ij] * (qtmp[iu, ij] - qtmp[iu+1, ij])
+                end
+            end
+        end
+    elseif iad == 2
+        for ij ∈ j1p:j2p
+            if ij <= js || ij >= jn
+                # In Polar area.
 
-					b1 = 0.5 * (qtmp[iu + 1, ij] - qtmp[iu - 1, ij])
+                for il ∈ i1:i2
+                    iu = round(ua[il, ij])
+                    riu = iu
+                    ru = riu - ua[il, ij]
+                    iu = il - iu
 
-					c1 = qtmp[iu, ij] - qtmp[il, ij]
+                    a1 = 0.5 * (qtmp[iu+1, ij] + qtmp[iu-1, ij]) - qtmp[iu, ij]
 
-					adx[il, ij] = (ru * ((a1 * ru) + b1)) + c1
-				end
-			end
-		end
-	end
-	
-	if ju1 == ju1_gl
-		adx[i1:i2, ju1] .= 0.0
+                    b1 = 0.5 * (qtmp[iu+1, ij] - qtmp[iu-1, ij])
 
-		if j1p != ju1_gl + 1
-			adx[i1:i2, ju1 + 1] .= 0.0
-		end
-	end
+                    c1 = qtmp[iu, ij] - qtmp[il, ij]
 
-	if j2 == j2_gl
-		adx[i1:i2, j2] .= 0.0
+                    adx[il, ij] = (ru * ((a1 * ru) + b1)) + c1
+                end
+            else # js < ij < jn
+                # Eulerian upwind.
 
-		if j1p != ju1_gl + 1
-			adx[i1:i2, j2 - 1] .= 0.0
-		end
-	end
+                for il ∈ i1:i2
+                    iu = round(ua[il, ij])
+                    riu = iu
+                    ru = riu - ua[il, ij]
+                    iu = il - iu
+
+                    a1 = 0.5 * (qtmp[iu+1, ij] + qtmp[iu-1, ij]) - qtmp[iu, ij]
+
+                    b1 = 0.5 * (qtmp[iu+1, ij] - qtmp[iu-1, ij])
+
+                    c1 = qtmp[iu, ij] - qtmp[il, ij]
+
+                    adx[il, ij] = (ru * ((a1 * ru) + b1)) + c1
+                end
+            end
+        end
+    end
+
+    if ju1 == ju1_gl
+        adx[i1:i2, ju1] .= 0.0
+
+        if j1p != ju1_gl + 1
+            adx[i1:i2, ju1+1] .= 0.0
+        end
+    end
+
+    if j2 == j2_gl
+        adx[i1:i2, j2] .= 0.0
+
+        if j1p != ju1_gl + 1
+            adx[i1:i2, j2-1] .= 0.0
+        end
+    end
 end
 
 """
@@ -1951,68 +2003,76 @@ John Tannahill, LLNL (jrt@llnl.gov).
 """
 function yadv_dao2!(
 	iad::Integer,
-	ady::Matrix{AbstractFloat},
-	qqu::Matrix{AbstractFloat},
-	va::Matrix{AbstractFloat},
-	i1_gl::Integer,
-	i2_gl::Integer,
-	ju1_gl::Integer,
-	j2_gl::Integer,
-	j1p::Integer,
-	j2p::Integer,
-	ilo::Integer,
-	ihi::Integer,
-	julo::Integer,
-	jhi::Integer,
-	i1::Integer,
-	i2::Integer,
-	ju1::Integer,
-	j2::Integer
+    ady::Matrix{AbstractFloat},
+    qqu::Matrix{AbstractFloat},
+    va::Matrix{AbstractFloat},
+    i1_gl::Integer,
+    i2_gl::Integer,
+    ju1_gl::Integer,
+    j2_gl::Integer,
+    j1p::Integer,
+    j2p::Integer,
+    ilo::Integer,
+    ihi::Integer,
+    julo::Integer,
+    jhi::Integer,
+    i1::Integer,
+    i2::Integer,
+    ju1::Integer,
+    j2::Integer
 )::Nothing
-	# We may need a small ghost zone depending on the polar cap used
-	qquwk = zeros(AbstractFloat, ilo:ihi, (julo - 2):(jhi + 2))
+    il::Integer = ij::Integer = jv::Integer = 0
 
-	# Zero output array
-	ady = 0
+    a1::AbstractFloat = b1::AbstractFloat = c1::AbstractFloat = rij::AbstractFloat = rjv::AbstractFloat = rv::AbstractFloat = 0
 
-	# Make work array
-	for ij = julo:jhi
-		qquwk[:, ij] .= qqu[:, ij]
-	end
+    # We may need a small ghost zone depending on the polar cap used
+    qquwk::Vector{AbstractFloat} = zeros(ilo:ihi, (julo-2):(jhi+2))
 
-	# This routine creates a ghost zone in latitude in case of not enlarged polar cap (ccc, 11/20/08)
-	# TODO:
-	do_yadv_pole_i2d2!(qqu, qquwk, i1_gl, i2_gl, ju1_gl, j2_gl, j1p, ilo, ihi, julo, jhi, i1, i2, ju1, j2)
-	
-	if iad == 1
-		# 1st order.
-		for ij = (j1p - 1):(j2p + 1), il = i1:i2
-			# !c?
-			rij = ij
-			jv = rij - va[il, ij]
+    # Zero output array
+    ady = 0
 
-			ady[il, ij] = va[il, ij] * (qquwk[il, jv] - qquwk[il, jv + 1])
-		end
-	elseif iad == 2
-		for ij = (j1p - 1):(j2p + 1), il = i1:i2
-			# c?
-			jv  = round(va[il, ij])
-			rjv = jv
-			rv  = rjv - va[il, ij]
-			jv  = ij - jv
+    # Make work array
+    for ij ∈ julo:jhi
+        qquwk[:, ij] .= qqu[:, ij]
+    end
 
-			a1 = 0.5 * (qquwk[il, jv + 1] + qquwk[il, jv - 1]) - qquwk[il, jv]
+    # This routine creates a ghost zone in latitude in case of not enlarged polar cap (ccc, 11/20/08)
+    # TODO:
+    do_yadv_pole_i2d2!(qqu, qquwk, i1_gl, i2_gl, ju1_gl, j2_gl, j1p, ilo, ihi, julo, jhi, i1, i2, ju1, j2)
 
-			b1 = 0.5 * (qquwk[il, jv + 1] - qquwk[il, jv - 1])
+    if iad == 1
+        # 1st order.
+        for ij ∈ (j1p-1):(j2p+1)
+            for il ∈ i1:i2
+                # !c?
+                rij = ij
+                jv = rij - va[il, ij]
 
-			c1 = qquwk[il, jv] - qquwk[il, ij]
+                ady[il, ij] = va[il, ij] * (qquwk[il, jv] - qquwk[il, jv+1])
+            end
+        end
+    elseif iad == 2
+        for ij ∈ (j1p-1):(j2p+1)
+            for il ∈ i1:i2
+                # c?
+                jv = round(va[il, ij])
+                rjv = jv
+                rv = rjv - va[il, ij]
+                jv = ij - jv
 
-			ady[il, ij] = (rv * ((a1 * rv) + b1)) + c1
-		end
-	end
-	
-	# TODO:
-	do_yadv_pole_sum!( ady, i1_gl, i2_gl, ju1_gl, j2_gl, j1p, ilo, ihi, julo, jhi, i1, i2, ju1, j2)
+                a1 = 0.5 * (qquwk[il, jv+1] + qquwk[il, jv-1]) - qquwk[il, jv]
+
+                b1 = 0.5 * (qquwk[il, jv+1] - qquwk[il, jv-1])
+
+                c1 = qquwk[il, jv] - qquwk[il, ij]
+
+                ady[il, ij] = (rv * ((a1 * rv) + b1)) + c1
+            end
+        end
+    end
+
+    # TODO:
+    do_yadv_pole_sum!(ady, i1_gl, i2_gl, ju1_gl, j2_gl, j1p, ilo, ihi, julo, jhi, i1, i2, ju1, j2)
 end
 
 """
@@ -2044,40 +2104,46 @@ John Tannahill, LLNL (jrt@llnl.gov).
 """
 function do_yadv_pole_i2d2!(
 	qqu::Matrix{AbstractFloat},
-	qquwk::Matrix{AbstractFloat},
-	i1_gl::Integer,
-	i2_gl::Integer,
-	ju1_gl::Integer,
-	j2_gl::Integer,
-	j1p::Integer,
-	ilo::Integer,
-	ihi::Integer,
-	julo::Integer,
-	jhi::Integer,
-	i1::Integer,
-	i2::Integer,
-	ju1::Integer,
-	j2::Integer
+    qquwk::Matrix{AbstractFloat},
+    i1_gl::Integer,
+    i2_gl::Integer,
+    ju1_gl::Integer,
+    j2_gl::Integer,
+    j1p::Integer,
+    ilo::Integer,
+    ihi::Integer,
+    julo::Integer,
+    jhi::Integer,
+    i1::Integer,
+    i2::Integer,
+    ju1::Integer,
+    j2::Integer
 )::Nothing
-	i2d2 = i2_gl / 2
-	
-	if j1p == ju1_gl + 1
-		# Polar Cap NOT Enlarged.
+    i2d2::Integer = il::Integer = ij::Integer = inb::Integer = 0
 
-		if ju1 == ju1_gl
-			for il = i1:i2d2, inb = 1:2
-				qquwk[il, ju1 - inb] = qqu[il + i2d2, ju1 + inb]
-				qquwk[il + i2d2, ju1 - inb] = qqu[il, ju1 + inb]
-			end
-		end
+    i2d2 = i2_gl / 2
 
-		if j2 == j2_gl
-			for il = i1:i2d2, inb = 1:2
-				qquwk[il, j2 + inb] = qqu[il + i2d2, j2 - inb]
-				qquwk[il + i2d2, j2 + inb] = qqu[il, j2 - inb]
-			end
-		end
-	end
+    if j1p == ju1_gl + 1
+        # Polar Cap NOT Enlarged.
+
+        if ju1 == ju1_gl
+            for il ∈ i1:i2d2
+                for inb ∈ 1:2
+                    qquwk[il, ju1-inb] = qqu[il+i2d2, ju1+inb]
+                    qquwk[il+i2d2, ju1-inb] = qqu[il, ju1+inb]
+                end
+            end
+        end
+
+        if j2 == j2_gl
+            for il ∈ i1:i2d2
+                for inb ∈ 1:2
+                    qquwk[il, j2+inb] = qqu[il+i2d2, j2-inb]
+                    qquwk[il+i2d2, j2+inb] = qqu[il, j2-inb]
+                end
+            end
+        end
+    end
 end
 
 """
@@ -2108,60 +2174,62 @@ John Tannahill, LLNL (jrt@llnl.gov).
 """
 function do_yadv_pole_sum!(
 	ady::Matrix{AbstractFloat},
-	i1_gl::Integer,
-	i2_gl::Integer,
-	ju1_gl::Integer,
-	j2_gl::Integer,
-	j1p::Integer,
-	ilo::Integer,
-	ihi::Integer,
-	julo::Integer,
-	jhi::Integer,
-	i1::Integer,
-	i2::Integer,
-	ju1::Integer,
-	j2::Integer
+    i1_gl::Integer,
+    i2_gl::Integer,
+    ju1_gl::Integer,
+    j2_gl::Integer,
+    j1p::Integer,
+    ilo::Integer,
+    ihi::Integer,
+    julo::Integer,
+    jhi::Integer,
+    i1::Integer,
+    i2::Integer,
+    ju1::Integer,
+    j2::Integer
 )::Nothing
-	# Test if we are using extended polar caps (i.e. the S pole and next N latitude and N. Pole and next S latitude).  Do this outside the loops. (bmy, 12/11/08)
-	is_ext_polar_cap = j1p == ju1_gl + 2
+    il::Integer = 0
 
-	# South Pole
+    # Test if we are using extended polar caps (i.e. the S pole and next N latitude and N. Pole and next S latitude).  Do this outside the loops. (bmy, 12/11/08)
+    is_ext_polar_cap = j1p == ju1_gl + 2
 
-	sumsp = 0.0
-	sumnp = 0.0
+    # South Pole
 
-	if is_ext_polar_cap
-		# For a 2-latitude polar cap (S. Pole + next Northward latitude)
-		for il = i1:i2
-			sumsp = sumsp + ady[il, ju1 + 1]
-			sumnp = sumnp + ady[il, j2 - 1]
-		end
-	else
+    sumsp::AbstractFloat = 0
+    sumnp::AbstractFloat = 0
+
+    if is_ext_polar_cap
+        # For a 2 - latitude polar cap (S. Pole + next Northward latitude)
+        for il ∈ i1:i2
+            sumsp = sumsp + ady[il, ju1+1]
+            sumnp = sumnp + ady[il, j2-1]
+        end
+    else
 		# For a 1-latitude polar cap (S. Pole only)
-		for il = i1:i2
-			sumsp = sumsp + ady[il, ju1]
-			sumnp = sumnp + ady[il, j2]
-		end
-	end
+        for il ∈ i1:i2
+            sumsp = sumsp + ady[il, ju1]
+            sumnp = sumnp + ady[il, j2]
+        end
+    end
 
-	sumsp = sumsp / i2_gl
-	sumnp = sumnp / i2_gl
-				
-	if is_ext_polar_cap 
+    sumsp = sumsp / i2_gl
+    sumnp = sumnp / i2_gl
+
+    if is_ext_polar_cap
 		# For a 2-latitude polar cap (S. Pole + next Northward latitude)
-		for il = i1:i2
-			ady[il, ju1 + 1] = sumsp
-			ady[il, ju1] = sumsp
-			ady[il, j2 - 1] = sumnp
-			ady[il, j2] = sumnp
-		end
-	else
+        for il ∈ i1:i2
+            ady[il, ju1+1] = sumsp
+            ady[il, ju1] = sumsp
+            ady[il, j2-1] = sumnp
+            ady[il, j2] = sumnp
+        end
+    else
 		# For a 1-latitude polar cap (S. Pole only)
-		for il = i1:i2
-			ady[il, ju1] = sumsp
-			ady[il, j2] = sumnp
-		end
-	end
+        for il ∈ i1:i2
+            ady[il, ju1] = sumsp
+            ady[il, j2] = sumnp
+        end
+    end
 end
 
 """
@@ -2201,143 +2269,149 @@ John Tannahill, LLNL (jrt@llnl.gov).
 """
 function xtp!(
 	ilmt::Integer,
-	jn::Integer,
-	js::Integer,
-	pu::Matrix{AbstractFloat},
-	crx::Matrix{AbstractFloat},
-	dq1::Matrix{AbstractFloat},
-	qqv::Matrix{AbstractFloat},
-	xmass::Matrix{AbstractFloat},
-	fx::Matrix{AbstractFloat},
-	j1p::Integer,
-	j2p::Integer,
-	i2_gl::Integer,
-	ju1_gl::Integer,
-	j2_gl::Integer,
-	ilo::Integer,
-	ihi::Integer,
-	julo::Integer,
-	jhi::Integer,
-	i1::Integer,
-	i2::Integer,
-	ju1::Integer,
-	j2::Integer,
-	iord::Integer
+    jn::Integer,
+    js::Integer,
+    pu::Matrix{AbstractFloat},
+    crx::Matrix{AbstractFloat},
+    dq1::Matrix{AbstractFloat},
+    qqv::Matrix{AbstractFloat},
+    xmass::Matrix{AbstractFloat},
+    fx::Matrix{AbstractFloat},
+    j1p::Integer,
+    j2p::Integer,
+    i2_gl::Integer,
+    ju1_gl::Integer,
+    j2_gl::Integer,
+    ilo::Integer,
+    ihi::Integer,
+    julo::Integer,
+    jhi::Integer,
+    i1::Integer,
+    i2::Integer,
+    ju1::Integer,
+    j2::Integer,
+    iord::Integer
 )::Nothing
-	isav = zeros(Integer, i1:i2)
-	dcx = zeros(AbstractFloat, (-i2 / 3):(i2 + i2 / 3), julo:jhi)
-	qtmp = zeros(AbstractFloat, (-i2 / 3):(i2 + i2 / 3), julo:jhi)
-	fx[:, :] .= 0.0
+    il::Integer = ij::Integer = ic::Integer = iu::Integer = ix::Integer = iuw::Integer = iue::Integer = imp::Integer = jvan::Integer = 0
 
-	imp = i2 + 1
+    rc::AbstractFloat = ric::AbstractFloat = ril::AbstractFloat = 0
 
-	# NOTE: these loops do not parallelize well (bmy, 12/5/08)
+    isav::Vector{Integer} = zeros(i1:i2)
 
-	# Populate qtmp
-	for il = i1:i2
-		qtmp[il, :] .= qqv[il, :]
-	end
+    dcx::Vector{AbstractFloat} = qtmp::Vector{AbstractFloat} = zeros((-i2/3):(i2+i2/3), julo:jhi)
 
-	for il = (-i2 / 3):0
-		qtmp[il, :] = qqv[i2 + il, :]
-	end
+    fx[:, :] .= 0.0
 
-	for il = (i2 + 1):(i2 + i2 / 3)
-		qtmp[il, :] = qqv[il - i2, :]
-	end
+    imp = i2 + 1
 
-	if iord != 1
-		qtmp[i1 - 1, :] .= qqv[i2, :]
-		qtmp[i1 - 2, :] .= qqv[i2 - 1, :]
-		qtmp[i2 + 1, :] .= qqv[i1, :]
-		qtmp[i2 + 2, :] .= qqv[i1 + 1, :]
-		
-		# TODO:
-		xmist!(dcx, qtmp, j1p, j2p, i2_gl, ju1_gl, j2_gl, ilo, ihi, julo, jhi, i1, i2, ju1, j2)
-	end
-	
-	jvan = max(1, j2_gl / 18)
-	
-	for ij = j1p:j2p
+    # NOTE: these loops do not parallelize well (bmy, 12/5/08)
+
+    # Populate qtmp
+    for il ∈ i1:i2
+        qtmp[il, :] .= qqv[il, :]
+    end
+
+    for il ∈ (-i2/3):0
+        qtmp[il, :] = qqv[i2+il, :]
+    end
+
+    for il ∈ (i2+1):(i2+i2/3)
+        qtmp[il, :] = qqv[il-i2, :]
+    end
+
+    if iord != 1
+        qtmp[i1-1, :] .= qqv[i2, :]
+        qtmp[i1-2, :] .= qqv[i2-1, :]
+        qtmp[i2+1, :] .= qqv[i1, :]
+        qtmp[i2+2, :] .= qqv[i1+1, :]
+
+        # TODO:
+        xmist!(dcx, qtmp, j1p, j2p, i2_gl, ju1_gl, j2_gl, ilo, ihi, julo, jhi, i1, i2, ju1, j2)
+    end
+
+    jvan = max(1, j2_gl / 18)
+
+    for ij ∈ j1p:j2p
 		if ij > js && ij < jn
 			# Do horizontal Eulerian advection in the E-W direction.
 			
-			if iord == 1 || ij == j1p || ij == j2p
-				for il = i1:i2
-					ril = il
-					iu = ril - crx[il, ij]
+            if iord == 1 || ij == j1p || ij == j2p
+                for il ∈ i1:i2
+                    ril = il
+                    iu = ril - crx[il, ij]
 
-					fx[il, ij] = qtmp[iu, ij]
-				end
-			else
-				if iord == 2 || ij <= j1p + jvan || ij >= j2p - jvan
-					for il = i1:i2
-						ril = il
-						iu = ril - crx[il, ij]
+                    fx[il, ij] = qtmp[iu, ij]
+                end
+            else
+                if iord == 2 || ij <= j1p + jvan || ij >= j2p - jvan
+                    for il ∈ i1:i2
+                        ril = il
+                        iu = ril - crx[il, ij]
 
-						fx[il, ij] = qtmp[iu, ij] + (dcx[iu, ij] * (sign(crx[il, ij]) - crx[il, ij]))
-					end
-				else
-					# TODO:
-					fxppm!(ij, ilmt, crx, dcx, fx, qtmp, -i2/3, i2+i2/3, julo, jhi, i1, i2)
-					# qtmp (inout) - can be updated
-				end
-			end
-			
-			for il = i1:i2
-				fx[il, ij] = fx[il, ij] * xmass[il, ij]
-			end
-		else
+                        fx[il, ij] = qtmp[iu, ij] + (dcx[iu, ij] * (sign(crx[il, ij]) - crx[il, ij]))
+                    end
+                else
+                    # TODO:
+                    fxppm!(ij, ilmt, crx, dcx, fx, qtmp, -i2 / 3, i2 + i2 / 3, julo, jhi, i1, i2)
+                    # qtmp (inout) - can be updated
+                end
+            end
+
+            for il ∈ i1:i2
+                fx[il, ij] = fx[il, ij] * xmass[il, ij]
+            end
+        else
 			# Do horizontal Conservative (flux-form) Semi-Lagrangian advection in the E-W direction (van Leer at high latitudes).
-			if iord == 1 || ij == j1p  ij == j2p
-				for il = i1:i2
-					ic = crx[il, ij]
-					isav[il] = il - ic
-					ril = il
-					iu = ril - crx[il, ij]
-					ric = ic
-					rc = crx[il, ij] - ric
+            if iord == 1 || ij == j1p
+                ij == j2p
+                for il ∈ i1:i2
+                    ic = crx[il, ij]
+                    isav[il] = il - ic
+                    ril = il
+                    iu = ril - crx[il, ij]
+                    ric = ic
+                    rc = crx[il, ij] - ric
 
-					fx[il, ij] = rc * qtmp[iu, ij]
-				end
-			else
-				for il = i1:i2
-					ic = crx[il, ij]
-					isav[il] = il - ic
-					ril = il
-					iu = ril - crx[il, ij]
-					ric = ic
-					rc = crx[il, ij] - ric
+                    fx[il, ij] = rc * qtmp[iu, ij]
+                end
+            else
+                for il ∈ i1:i2
+                    ic = crx[il, ij]
+                    isav[il] = il - ic
+                    ril = il
+                    iu = ril - crx[il, ij]
+                    ric = ic
+                    rc = crx[il, ij] - ric
 
-					fx[il, ij] = rc * (qtmp[iu, ij] + (dcx[iu, ij] * (sign(rc) - rc)))
-				end
-			end
+                    fx[il, ij] = rc * (qtmp[iu, ij] + (dcx[iu, ij] * (sign(rc) - rc)))
+                end
+            end
 
-			for il = i1:i2
-				if crx[il, ij] > 1.0
-					for ix = isav[il]:(il - 1)
-						fx[il, ij] = fx[il, ij] + qtmp[ix, ij]
-					end
-				elseif crx[il, ij] < -1.0
-					for ix = il:(isav[il] - 1)
-						fx[il, ij] = fx[il, ij] - qtmp[ix, ij]
-					end
-				end
-			end
+            for il ∈ i1:i2
+                if crx[il, ij] > 1.0
+                    for ix ∈ isav[il]:(il-1)
+                        fx[il, ij] = fx[il, ij] + qtmp[ix, ij]
+                    end
+                elseif crx[il, ij] < -1.0
+                    for ix ∈ il:(isav[il]-1)
+                        fx[il, ij] = fx[il, ij] - qtmp[ix, ij]
+                    end
+                end
+            end
 
-			for il = i1:i2
-				fx[il, ij] = pu[il, ij] * fx[il, ij]
-			end
-		end
-	end
-			
-	# NOTE: This loop does not parallelize well (bmy, 12/5/08)
-	for ij = j1p:j2p
-		for il = i1:(i2 - 1)
-			dq1[il, ij] = dq1[il, ij] + (fx[il, ij] - fx[il + 1, ij])
-		end
-		dq1[i2, ij] = dq1[i2, ij] + (fx[i2, ij] - fx[i1, ij])
-	end
+            for il ∈ i1:i2
+                fx[il, ij] = pu[il, ij] * fx[il, ij]
+            end
+        end
+    end
+
+    # NOTE: This loop does not parallelize well (bmy, 12/5/08)
+    for ij ∈ j1p:j2p
+        for il ∈ i1:(i2-1)
+            dq1[il, ij] = dq1[il, ij] + (fx[il, ij] - fx[il+1, ij])
+        end
+        dq1[i2, ij] = dq1[i2, ij] + (fx[i2, ij] - fx[i1, ij])
+    end
 end
 
 """
@@ -2369,43 +2443,49 @@ John Tannahill, LLNL (jrt@llnl.gov).
 """
 function xmist!(
 	dcx::Matrix{AbstractFloat},
-	qqv::Matrix{AbstractFloat},
-	j1p::Integer,
-	j2p::Integer,
-	i2_gl::Integer,
-	ju1_gl::Integer,
-	j2_gl::Integer,
-	ilo::Integer,
-	ihi::Integer,
-	julo::Integer,
-	jhi::Integer,
-	i1::Integer,
-	i2::Integer,
-	ju1::Integer,
-	j2::Integer
+    qqv::Matrix{AbstractFloat},
+    j1p::Integer,
+    j2p::Integer,
+    i2_gl::Integer,
+    ju1_gl::Integer,
+    j2_gl::Integer,
+    ilo::Integer,
+    ihi::Integer,
+    julo::Integer,
+    jhi::Integer,
+    i1::Integer,
+    i2::Integer,
+    ju1::Integer,
+    j2::Integer
 )::Nothing
-	r24 = 1.0 / 24.0
+    il::Integer = ij::Integer = 0
 
-	for ij = (j1p + 1):(j2p - 1), il = i1:i2
-		tmp = ((8.0 * (qqv[il + 1, ij] - qqv[il - 1, ij])) + qqv[il - 2, ij] - qqv[il + 2, ij]) * r24
+    pmax::AbstractFloat = pmin::AbstractFloat = r24::AbstractFloat = tmp::AbstractFloat = 0
 
-		pmax = max(qqv[il - 1, ij], qqv[il, ij], qqv[il + 1, ij]) - qqv[il, ij]
+    r24 = 1.0 / 24.0
 
-		pmin = qqv[il, ij] - min(qqv[il - 1, ij], qqv[il, ij], qqv[il + 1, ij])
+    for ij ∈ (j1p+1):(j2p-1)
+        for il ∈ i1:i2
+            tmp = ((8.0 * (qqv[il+1, ij] - qqv[il-1, ij])) + qqv[il-2, ij] - qqv[il+2, ij]) * r24
 
-		dcx[il, ij] = sign(tmp) * min(abs(tmp), pmax, pmin)
-	end
+            pmax = max(qqv[il-1, ij], qqv[il, ij], qqv[il+1, ij]) - qqv[il, ij]
 
-	# Populate ghost zones of dcx (ccc, 11/20/08)
-	for ij = julo:jhi
-		for il = (-i2 / 3):0
-			dcx[il, ij] = dcx[i2 + il, ij]
-		end
+            pmin = qqv[il, ij] - min(qqv[il-1, ij], qqv[il, ij], qqv[il+1, ij])
 
-		for il = (i2 + 1):(i2 + i2 / 3)
-			dcx[il, ij] = dcx[il - i2, ij]
-		end
-	end
+            dcx[il, ij] = sign(tmp) * min(abs(tmp), pmax, pmin)
+        end
+    end
+
+    # Populate ghost zones of dcx (ccc, 11/20/08)
+    for ij ∈ julo:jhi
+        for il ∈ (-i2/3):0
+            dcx[il, ij] = dcx[i2+il, ij]
+        end
+
+        for il ∈ (i2+1):(i2+i2/3)
+            dcx[il, ij] = dcx[il-i2, ij]
+        end
+    end
 end
 
 """
@@ -2437,104 +2517,102 @@ This routine is called from w/in a OpenMP parallel loop fro
 """
 function fxppm!(
 	ij::Integer,
-	ilmt::Integer,
-	crx::Matrix{AbstractFloat},
-	dcx::Matrix{AbstractFloat},
-	fx::Matrix{AbstractFloat},
-	qqv::Matrix{AbstractFloat},
-	ilo::Integer,
-	ihi::Integer,
-	julo::Integer,
-	jhi::Integer,
-	i1::Integer,
-	i2::Integer
+    ilmt::Integer,
+    crx::Matrix{AbstractFloat},
+    dcx::Matrix{AbstractFloat},
+    fx::Matrix{AbstractFloat},
+    qqv::Matrix{AbstractFloat},
+    ilo::Integer,
+    ihi::Integer,
+    julo::Integer,
+    jhi::Integer,
+    i1::Integer,
+    i2::Integer
 )::Nothing
-	# Zero arrays (bmy, 12/5/08)
-	a6 = zeros(AbstractFloat, ilo:ihi)
-	al = zeros(AbstractFloat, ilo:ihi)
-	ar = zeros(AbstractFloat, ilo:ihi)
-	a61 = zeros(AbstractFloat, (ihi-1) - (ilo+1) + 1)
-	al1 = zeros(AbstractFloat, (ihi-1) - (ilo+1) + 1)
-	ar1 = zeros(AbstractFloat, (ihi-1) - (ilo+1) + 1)
-	dcxi1 = zeros(AbstractFloat, (ihi-1) - (ilo+1) + 1)
-	qqvi1 = zeros(AbstractFloat, (ihi-1) - (ilo+1) + 1)
+    il::Integer = ilm1::Integer = lenx::Integer = 0
 
-	r13 = 1.0 / 3.0
-	r23 = 2.0 / 3.0
+    r13::AbstractFloat = r23::AbstractFloat = rval::AbstractFloat = 0
 
-	for il = (ilo + 1):ihi
-		rval = 0.5 * (qqv[il - 1, ij] + qqv[il, ij]) + (dcx[il - 1, ij] - dcx[il, ij]) * r13
-		al[il] = rval
-		ar[il - 1] = rval
-	end
+    a6::Vector{AbstractFloat} = al::Vector{AbstractFloat} = ar::Vector{AbstractFloat} = zeros(ilo:ihi)
 
-	for il = (ilo + 1):(ihi - 1)
-		a6[il] = 3.0 * (qqv[il, ij] + qqv[il, ij] - (al[il] + ar[il]))
-	end
-	
-	if ilmt <= 2
-		a61[:] .= 0.0
-		al1[:] .= 0.0
-		ar1[:] .= 0.0
+    a61::Vector{AbstractFloat} = al1::Vector{AbstractFloat} = ar1::Vector{AbstractFloat} = dcxi1::Vector{AbstractFloat} = qqvi1::Vector{AbstractFloat} = zeros((ihi - 1) - (ilo + 1) + 1)
 
-		dcxi1[:] .= 0.0
-		qqvi1[:] .= 0.0
+    r13 = 1.0 / 3.0
+    r23 = 2.0 / 3.0
 
-		lenx = 0
-		for il = (ilo + 1):(ihi - 1)
-			lenx = lenx + 1
+    for il ∈ (ilo+1):ihi
+        rval = 0.5 * (qqv[il-1, ij] + qqv[il, ij]) + (dcx[il-1, ij] - dcx[il, ij]) * r13
+        al[il] = rval
+        ar[il-1] = rval
+    end
 
-			a61[lenx] = a6[il]
-			al1[lenx] = al[il]
-			ar1[lenx] = ar[il]
+    for il ∈ (ilo+1):(ihi-1)
+        a6[il] = 3.0 * (qqv[il, ij] + qqv[il, ij] - (al[il] + ar[il]))
+    end
 
-			dcxi1[lenx] = dcx[il, ij]
-			qqvi1[lenx] = qqv[il, ij]
-		end
-		
-		# TODO:
-		lmtppm!(lenx, ilmt, a61, al1, ar1, dcxi1, qqvi1)
+    if ilmt <= 2
+        a61[:] .= 0.0
+        al1[:] .= 0.0
+        ar1[:] .= 0.0
 
-		lenx = 0
-		for il = (ilo + 1):(ihi - 1)
-			lenx = lenx + 1
+        dcxi1[:] .= 0.0
+        qqvi1[:] .= 0.0
 
-			a6[il] = a61[lenx]
-			al[il] = al1[lenx]
-			ar[il] = ar1[lenx]
+        lenx = 0
+        for il ∈ (ilo+1):(ihi-1)
+            lenx = lenx + 1
 
-			dcx[il, ij] = dcxi1[lenx]
-			qqv[il, ij] = qqvi1[lenx]
-		end
+            a61[lenx] = a6[il]
+            al1[lenx] = al[il]
+            ar1[lenx] = ar[il]
 
-		# Populate ghost zones of qqv and dcx with new values (ccc, 11/20/08)
-		for il = (-i2 / 3):0
-			dcx[il, ij] = dcx[i2 + il, ij]
-			qqv[il, ij] = qqv[i2 + il, ij]
-		end
+            dcxi1[lenx] = dcx[il, ij]
+            qqvi1[lenx] = qqv[il, ij]
+        end
 
-		for il = (i2 + 1):(i2 + i2 / 3)
-			dcx[il, ij] = dcx[il - i2, ij]
-			qqv[il, ij] = qqv[il - i2, ij]
-		end
-	end
+        # TODO:
+        lmtppm!(lenx, ilmt, a61, al1, ar1, dcxi1, qqvi1)
 
-	for il = (i1 + 1):i2
-		if crx[il, ij] > 0.0
-			ilm1 = il - 1
-			fx[il, ij] = ar[ilm1] + 0.5 * crx[il, ij] * (al[ilm1] - ar[ilm1] + (a6[ilm1] * (1.0 - (r23 * crx[il, ij]))))
-		else
-			fx[il, ij] = al[il] - 0.5 * crx[il, ij] * (ar[il] - al[il] + (a6[il] * (1.0 + (r23 * crx[il, ij]))))
-		end
-	end
+        lenx = 0
+        for il ∈ (ilo+1):(ihi-1)
+            lenx = lenx + 1
 
-	# First box case (ccc, 11/20/08)
-	if crx[i1, ij] > 0.0
-		ilm1 = i2
-		fx[i1, ij] = ar[ilm1] + 0.5 * crx[i1, ij] * (al[ilm1] - ar[ilm1] + (a6[ilm1] * (1.0 - (r23 * crx[i1, ij]))))
-	else
-		fx[i1, ij] = al[i1] - 0.5 * crx[i1, ij] * (ar[i1] - al[i1] + (a6[i1] * (1.0 + (r23 * crx[i1, ij]))))
-	end
+            a6[il] = a61[lenx]
+            al[il] = al1[lenx]
+            ar[il] = ar1[lenx]
+
+            dcx[il, ij] = dcxi1[lenx]
+            qqv[il, ij] = qqvi1[lenx]
+        end
+
+        # Populate ghost zones of qqv and dcx with new values (ccc, 11/20/08)
+        for il ∈ (-i2/3):0
+            dcx[il, ij] = dcx[i2+il, ij]
+            qqv[il, ij] = qqv[i2+il, ij]
+        end
+
+        for il ∈ (i2+1):(i2+i2/3)
+            dcx[il, ij] = dcx[il-i2, ij]
+            qqv[il, ij] = qqv[il-i2, ij]
+        end
+    end
+
+    for il ∈ (i1+1):i2
+        if crx[il, ij] > 0.0
+            ilm1 = il - 1
+            fx[il, ij] = ar[ilm1] + 0.5 * crx[il, ij] * (al[ilm1] - ar[ilm1] + (a6[ilm1] * (1.0 - (r23 * crx[il, ij]))))
+        else
+            fx[il, ij] = al[il] - 0.5 * crx[il, ij] * (ar[il] - al[il] + (a6[il] * (1.0 + (r23 * crx[il, ij]))))
+        end
+    end
+
+    # First box case (ccc, 11/20/08)
+    if crx[i1, ij] > 0.0
+        ilm1 = i2
+        fx[i1, ij] = ar[ilm1] + 0.5 * crx[i1, ij] * (al[ilm1] - ar[ilm1] + (a6[ilm1] * (1.0 - (r23 * crx[i1, ij]))))
+    else
+        fx[i1, ij] = al[i1] - 0.5 * crx[i1, ij] * (ar[i1] - al[i1] + (a6[i1] * (1.0 + (r23 * crx[i1, ij]))))
+    end
 end
 
 """
@@ -2546,11 +2624,11 @@ Enforces the full monotonic, semi-monotonic, or the positive-definite constraint
 	- If 0 => full monotonicity;
 	- If 1 => semi-monotonic constraint (no undershoots);
 	- If 2 => positive-definite constraint
-- `a6::Array{AbstractFloat}` - (lenx) - INOUT - Curvature of the test parabola
-- `al::Array{AbstractFloat}` - (lenx) - INOUT - Left edge value of the test parabola
-- `ar::Array{AbstractFloat}` - (lenx) - INOUT - Right edge value of the test parabola
-- `dc::Array{AbstractFloat}` - (lenx) - INOUT - 0.5 * mismatch
-- `qa::Array{AbstractFloat}` - (lenx) - INOUT - Cell-averaged value
+- `a6::Vector{AbstractFloat}` - (lenx) - INOUT - Curvature of the test parabola
+- `al::Vector{AbstractFloat}` - (lenx) - INOUT - Left edge value of the test parabola
+- `ar::Vector{AbstractFloat}` - (lenx) - INOUT - Right edge value of the test parabola
+- `dc::Vector{AbstractFloat}` - (lenx) - INOUT - 0.5 * mismatch
+- `qa::Vector{AbstractFloat}` - (lenx) - INOUT - Cell-averaged value
 
 ## Author
 Original code from Shian-Jiann Lin, DAO.
@@ -2560,78 +2638,82 @@ John Tannahill, LLNL (jrt@llnl.gov).
 05 Dec 2008 - C. Carouge - Replaced TPCORE routines by S-J Lin and Kevin Yeh with the TPCORE routines from GMI model. This eliminates the polar overshoot in the stratosphere. See https://github.com/geoschem/geos-chem for complete history.
 """
 function lmtppm!(
-	lenx::Integer,
-	lmt::Integer,
-	a6::Array{AbstractFloat},
-	al::Array{AbstractFloat},
-	ar::Array{AbstractFloat},
-	dc::Array{AbstractFloat},
-	qa::Array{AbstractFloat}
+    lenx::Integer,
+    lmt::Integer,
+    a6::Vector{AbstractFloat},
+    al::Vector{AbstractFloat},
+    ar::Vector{AbstractFloat},
+    dc::Vector{AbstractFloat},
+    qa::Vector{AbstractFloat}
 )::Nothing
-	r12 = 1.0 / 12.0
-	
-	if lmt == 0
-		# Full constraint.
-		
-		for il = 1:lenx
-			if dc[il] == 0.0
-					a6[il] = 0.0
-					al[il] = qa[il]
-					ar[il] = qa[il]
-			else
-				da1 = ar[il] - al[il]
-				da2 = da1 * da1
-				a6da = a6[il] * da1
+    il::Integer = 0
 
-				if a6da < -da2
-					a6[il] = 3.0 * (al[il] - qa[il])
-					ar[il] = al[il] - a6[il]
-				elseif a6da > da2
-					a6[il] = 3.0 * (ar[il] - qa[il])
-					al[il] = ar[il] - a6[il]
-				end
+    a6da::AbstractFloat = da1::AbstractFloat = da2::AbstractFloat = fmin::AbstractFloat = ftmp::AbstractFloat = r12::AbstractFloat = 0
+
+    r12 = 1.0 / 12.0
+
+    if lmt == 0
+        # Full constraint.
+
+        for il ∈ 1:lenx
+            if dc[il] == 0.0
+                a6[il] = 0.0
+                al[il] = qa[il]
+                ar[il] = qa[il]
+            else
+                da1 = ar[il] - al[il]
+                da2 = da1 * da1
+                a6da = a6[il] * da1
+
+                if a6da < -da2
+                    a6[il] = 3.0 * (al[il] - qa[il])
+                    ar[il] = al[il] - a6[il]
+                elseif a6da > da2
+                    a6[il] = 3.0 * (ar[il] - qa[il])
+                    al[il] = ar[il] - a6[il]
+                end
 			end
 		end
 	elseif lmt == 1
 		# Semi-monotonic constraint.
 		
-		for il = 1:lenx
-			if abs(ar[il] - al[il]) < -a6[il]
-				if qa[il] < ar[il] && qa[il] < al[il]
-					a6[il] = 0.0
-					al[il] = qa[il]
-					ar[il] = qa[il]
-				elseif ar[il] > al[il]
-					a6[il] = 3.0 * (al[il] - qa[il])
-					ar[il] = al[il] - a6[il]
-				else
-					a6[il] = 3.0 * (ar[il] - qa[il])
-					al[il] = ar[il] - a6[il]
-				end
-			end
+        for il ∈ 1:lenx
+            if abs(ar[il] - al[il]) < -a6[il]
+                if qa[il] < ar[il] && qa[il] < al[il]
+                    a6[il] = 0.0
+                    al[il] = qa[il]
+                    ar[il] = qa[il]
+                elseif ar[il] > al[il]
+                    a6[il] = 3.0 * (al[il] - qa[il])
+                    ar[il] = al[il] - a6[il]
+                else
+                    a6[il] = 3.0 * (ar[il] - qa[il])
+                    al[il] = ar[il] - a6[il]
+                end
+            end
 		end
 	elseif lmt == 2
 		# positive-definite constraint
 		
-		for il = 1:lenx
-			if abs(ar[il] - al[il]) < -a6[il]
+        for il ∈ 1:lenx
+            if abs(ar[il] - al[il]) < -a6[il]
 
-				ftmp = ar[il] - al[il]
+                ftmp = ar[il] - al[il]
 
-				fmin = qa[il] + 0.25 * (ftmp * ftmp) / a6[il] + a6[il] * r12
+                fmin = qa[il] + 0.25 * (ftmp * ftmp) / a6[il] + a6[il] * r12
 
-				if fmin < 0.0
-					if qa[il] < ar[il] && qa[il] < al[il]
-						a6[il] = 0.0
-						al[il] = qa[il]
-						ar[il] = qa[il]
-					elseif ar[il] > al[il]
-						a6[il] = 3.0 * (al[il] - qa[il])
-						ar[il] = al[il] - a6[il]
-					else
-						a6[il] = 3.0 * (ar[il] - qa[il])
-						al[il] = ar[il] - a6[il]
-					end
+                if fmin < 0.0
+                    if qa[il] < ar[il] && qa[il] < al[il]
+                        a6[il] = 0.0
+                        al[il] = qa[il]
+                        ar[il] = qa[il]
+                    elseif ar[il] > al[il]
+                        a6[il] = 3.0 * (al[il] - qa[il])
+                        ar[il] = al[il] - a6[il]
+                    else
+                        a6[il] = 3.0 * (ar[il] - qa[il])
+                        al[il] = ar[il] - a6[il]
+                    end
 				end
 			end
 		end
@@ -2680,70 +2762,77 @@ function ytp!(
 	geofac_pc::AbstractFloat,
 	geofac::Matrix{AbstractFloat},
 	cry::Matrix{AbstractFloat},
-	dq1::Matrix{AbstractFloat},
-	qqu::Matrix{AbstractFloat},
-	qqv::Matrix{AbstractFloat},
-	ymass::Matrix{AbstractFloat},
-	fy::Matrix{AbstractFloat},
-	j1p::Integer,
-	j2p::Integer,
-	i1_gl::Integer,
-	i2_gl::Integer,
-	ju1_gl::Integer,
-	j2_gl::Integer,
-	ilong::Integer,
-	ilo::Integer,
-	ihi::Integer,
-	julo::Integer,
-	jhi::Integer,
-	i1::Integer,
-	i2::Integer,
-	ju1::Integer,
-	j2::Integer,
-	jord::Integer
+    dq1::Matrix{AbstractFloat},
+    qqu::Matrix{AbstractFloat},
+    qqv::Matrix{AbstractFloat},
+    ymass::Matrix{AbstractFloat},
+    fy::Matrix{AbstractFloat},
+    j1p::Integer,
+    j2p::Integer,
+    i1_gl::Integer,
+    i2_gl::Integer,
+    ju1_gl::Integer,
+    j2_gl::Integer,
+    ilong::Integer,
+    ilo::Integer,
+    ihi::Integer,
+    julo::Integer,
+    jhi::Integer,
+    i1::Integer,
+    i2::Integer,
+    ju1::Integer,
+    j2::Integer,
+    jord::Integer
 )::Nothing
-	dcy = zeros(AbstractFloat, ilo:ihi, julo:jhi)
-	fy[:, :] .= 0.0
+    il::Integer = ij::Integer = jv::Integer = 0
+    rj1p::AbstractFloat = 0
+    dcy::Matrix{AbstractFloat} = zeros(ilo:ihi, julo:jhi)
 
-	rj1p = j1p
-	
-	if jord == 1
-		for ij = j1p:(j2p + 1), il = i1:i2
-			# c?
-			jv = rj1p - cry[il, ij]
-			qqv[il, ij] = qqu[il, jv]
-		end
-	else
-			# TODO:
-			ymist!(4, dcy, qqu, i1_gl, i2_gl, ju1_gl, j2_gl, j1p, ilo, ihi, julo, jhi, i1, i2, ju1, j2)
-		if jord <= 0 || jord >= 3
-			# TODO:
-			fyppm!(jlmt, cry, dcy, qqu, qqv, j1p, j2p, i1_gl, i2_gl, ju1_gl, j2_gl, ilong, ilo, ihi, julo, jhi, i1, i2, ju1, j2)
-		else
-			for ij = j1p:(j2p + 1), il = i1:i2
-				# c?
-				jv = rj1p - cry[il, ij]
-				qqv[il, ij] = qqu[il, jv] + ((sign(cry[il, ij]) - cry[il, ij]) * dcy[il, jv])
-			end
-		end
-	end
+    fy[:, :] .= 0.0
 
-	for ij = j1p:(j2p + 1)
-		qqv[i1:i2, ij] = qqv[i1:i2, ij] * ymass[i1:i2, ij]
-	end
+    rj1p = j1p
 
-	# .sds.. save N-S species flux as diagnostic
-	for ij = i1:i2
-		fy[ij, j1p:(j2p + 1)] = qqv[ij, j1p:(j2p + 1)] * geofac[j1p:(j2p + 1)]
-	end
+    if jord == 1
+        for ij ∈ j1p:(j2p+1)
+            for il ∈ i1:i2
+                # c?
+                jv = rj1p - cry[il, ij]
+                qqv[il, ij] = qqu[il, jv]
+            end
+        end
+    else
+        # TODO:
+        ymist!(4, dcy, qqu, i1_gl, i2_gl, ju1_gl, j2_gl, j1p, ilo, ihi, julo, jhi, i1, i2, ju1, j2)
+        if jord <= 0 || jord >= 3
+            # TODO:
+            fyppm!(jlmt, cry, dcy, qqu, qqv, j1p, j2p, i1_gl, i2_gl, ju1_gl, j2_gl, ilong, ilo, ihi, julo, jhi, i1, i2, ju1, j2)
+        else
+            for ij ∈ j1p:(j2p+1)
+                for il ∈ i1:i2
+                    # c?
+                    jv = rj1p - cry[il, ij]
+                    qqv[il, ij] = qqu[il, jv] + ((sign(cry[il, ij]) - cry[il, ij]) * dcy[il, jv])
+                end
+            end
+        end
+    end
 
-	# ... meridional flux update
-	for ij = j1p:j2p
-		dq1[i1:i2, ij] = dq1[i1:i2, ij] + (qqv[i1:i2, ij] - qqv[i1:i2, ij + 1]) * geofac[ij]
-	end
-	
-	# TODO:
-	do_ytp_pole_sum!(geofac_pc, dq1, qqv, fy, i1_gl, i2_gl, ju1_gl, j2_gl, j1p, j2p, ilo, ihi, julo, jhi, i1, i2, ju1, j2)
+    for ij ∈ j1p:(j2p+1)
+        qqv[i1:i2, ij] = qqv[i1:i2, ij] * ymass[i1:i2, ij]
+    end
+
+    # .sds.. save N - S species flux as diagnostic
+    for ij ∈ i1:i2
+        fy[ij, j1p:(j2p+1)] = qqv[ij, j1p:(j2p+1)] * geofac[j1p:(j2p+1)]
+    end
+
+    # ... meridional flux update
+    for ij ∈ j1p:j2p
+        dq1[i1:i2, ij] = dq1[i1:i2, ij] + (qqv[i1:i2, ij] - qqv[i1:i2, ij+1]) * geofac[ij]
+    end
+
+    # TODO:
+    do_ytp_pole_sum!(geofac_pc, dq1, qqv, fy, i1_gl, i2_gl, ju1_gl, j2_gl, j1p, j2p, ilo, ihi, julo, jhi, i1, i2, ju1, j2)
 end
 
 """
@@ -2777,59 +2866,67 @@ John Tannahill, LLNL (jrt@llnl.gov).
 function ymist!(
 	id::Integer,
 	dcy::Matrix{AbstractFloat},
-	qqu::Matrix{AbstractFloat},
-	i1_gl::Integer,
-	i2_gl::Integer,
-	ju1_gl::Integer,
-	j2_gl::Integer,
-	j1p::Integer,
-	ilo::Integer,
-	ihi::Integer,
-	julo::Integer,
-	jhi::Integer,
-	i1::Integer,
-	i2::Integer,
-	ju1::Integer,
-	j2::Integer
+    qqu::Matrix{AbstractFloat},
+    i1_gl::Integer,
+    i2_gl::Integer,
+    ju1_gl::Integer,
+    j2_gl::Integer,
+    j1p::Integer,
+    ilo::Integer,
+    ihi::Integer,
+    julo::Integer,
+    jhi::Integer,
+    i1::Integer,
+    i2::Integer,
+    ju1::Integer,
+    j2::Integer
 )::Nothing
-	# I suppose the values for these indexes are 0. It should work as the pole values are re-calculated in the pole functions. (ccc)
-	qtmp = zeros(AbstractFloat, ilo:ihi, (julo - 2):(jhi + 2))
+    il::Integer = ij::Integer = 0
 
-	r24  = 1.0 / 24.0
+    pmax::AbstractFloat = pmin::AbstractFloat = r24::AbstractFloat = tmp::AbstractFloat = 0
 
-	# Populate qtmp
-	qtmp = 0.0
-	for ij = ju1:j2
-			qtmp[:, ij] .= qqu[:, ij]
-	end
-	
-	if id == 2
-		for ij = (ju1 - 1):(j2 - 1), il = i1:i2
-			tmp  = 0.25 * (qtmp[il, ij + 2] - qtmp[il, ij])
+    # I suppose the values for these indexes are 0. It should work as the pole values are re - calculated in the pole functions. (ccc)
+    qtmp::Matrix{AbstractFloat} = zeros(ilo:ihi, (julo-2):(jhi+2))
 
-			pmax = max(qtmp[il, ij], qtmp[il, ij + 1], qtmp[il, ij + 2]) - qtmp[il, ij + 1]
+    r24 = 1.0 / 24.0
 
-			pmin = qtmp[il, ij + 1] - min(qtmp[il, ij], qtmp[il, ij + 1], qtmp[il, ij + 2])
+    # Populate qtmp
+    qtmp = 0.0
+    for ij ∈ ju1:j2
+        qtmp[:, ij] .= qqu[:, ij]
+    end
 
-			dcy[il, ij + 1] = sign(tmp) * min(abs(tmp), pmin, pmax)
-		end
-	else
-		# TODO:
-		do_ymist_pole1_i2d2!(dcy, qtmp, i1_gl, i2_gl, ju1_gl, j2_gl, ilo, ihi, julo, jhi, i1, i2, ju1, j2)
+    if id == 2
+        for ij ∈ (ju1-1):(j2-1)
+            for il ∈ i1:i2
+                tmp = 0.25 * (qtmp[il, ij+2] - qtmp[il, ij])
 
-		for ij = (ju1 - 2):(j2 - 2), il = i1:i2
-			tmp = ((8.0 * (qtmp[il, ij + 3] - qtmp[il, ij + 1])) + qtmp[il, ij] - qtmp[il, ij + 4]) * r24
+                pmax = max(qtmp[il, ij], qtmp[il, ij+1], qtmp[il, ij+2]) - qtmp[il, ij+1]
 
-			pmax = max(qtmp[il, ij + 1], qtmp[il, ij + 2], qtmp[il, ij + 3]) - qtmp[il, ij + 2]
+                pmin = qtmp[il, ij+1] - min(qtmp[il, ij], qtmp[il, ij+1], qtmp[il, ij+2])
 
-			pmin = qtmp[il, ij + 2] - min(qtmp[il, ij + 1], qtmp[il, ij + 2], qtmp[il, ij + 3])
+                dcy[il, ij+1] = sign(tmp) * min(abs(tmp), pmin, pmax)
+            end
+        end
+    else
+        # TODO:
+        do_ymist_pole1_i2d2!(dcy, qtmp, i1_gl, i2_gl, ju1_gl, j2_gl, ilo, ihi, julo, jhi, i1, i2, ju1, j2)
 
-			dcy[il, ij + 2] = sign(tmp) * min(abs(tmp), pmin, pmax)
-		end
-	end
-	
-	# TODO:
-	do_ymist_pole2_i2d2!(dcy, qtmp, i1_gl, i2_gl, ju1_gl, j2_gl, j1p, ilo, ihi, julo, jhi, i1, i2, ju1, j2)
+        for ij ∈ (ju1-2):(j2-2)
+            for il ∈ i1:i2
+                tmp = ((8.0 * (qtmp[il, ij+3] - qtmp[il, ij+1])) + qtmp[il, ij] - qtmp[il, ij+4]) * r24
+
+                pmax = max(qtmp[il, ij+1], qtmp[il, ij+2], qtmp[il, ij+3]) - qtmp[il, ij+2]
+
+                pmin = qtmp[il, ij+2] - min(qtmp[il, ij+1], qtmp[il, ij+2], qtmp[il, ij+3])
+
+                dcy[il, ij+2] = sign(tmp) * min(abs(tmp), pmin, pmax)
+            end
+        end
+    end
+
+    # TODO:
+    do_ymist_pole2_i2d2!(dcy, qtmp, i1_gl, i2_gl, ju1_gl, j2_gl, j1p, ilo, ihi, julo, jhi, i1, i2, ju1, j2)
 end
 
 """
@@ -2860,67 +2957,71 @@ John Tannahill, LLNL (jrt@llnl.gov).
 """
 function do_ymist_pole1_i2d2!(
 	dcy::Matrix{AbstractFloat},
-	qqu::Matrix{AbstractFloat},
-	i1_gl::Integer,
-	i2_gl::Integer,
-	ju1_gl::Integer,
-	j2_gl::Integer,
-	ilo::Integer,
-	ihi::Integer,
-	julo::Integer,
-	jhi::Integer,
-	i1::Integer,
-	i2::Integer,
-	ju1::Integer,
-	j2::Integer
+    qqu::Matrix{AbstractFloat},
+    i1_gl::Integer,
+    i2_gl::Integer,
+    ju1_gl::Integer,
+    j2_gl::Integer,
+    ilo::Integer,
+    ihi::Integer,
+    julo::Integer,
+    jhi::Integer,
+    i1::Integer,
+    i2::Integer,
+    ju1::Integer,
+    j2::Integer
 )::Nothing
-	i2d2 = i2_gl / 2
+    i2d2::Integer = il::Integer = 0
 
-	r24  = 1.0 / 24.0
-	
-	if ju1 == ju1_gl
-		for il = i1:i2d2
-			tmp = ((8.0 * (qqu[il, ju1 + 2] - qqu[il, ju1])) + qqu[il + i2d2, ju1 + 1] - qqu[il, ju1 + 3]) * r24
+    pmax::AbstractFloat = pmin::AbstractFloat = r24::AbstractFloat = tmp::AbstractFloat = 0
 
-			pmax = max(qqu[il, ju1], qqu[il, ju1 + 1], qqu[il, ju1 + 2]) - qqu[il, ju1 + 1]
+    i2d2 = i2_gl / 2
 
-			pmin = qqu(il,ju1+1) - min(qqu[il, ju1], qqu[il, ju1 + 1], qqu[il, ju1 + 2])
+    r24 = 1.0 / 24.0
 
-			dcy[il, ju1 + 1] = sign(tmp) * min(abs(tmp), pmin, pmax)
-		end
+    if ju1 == ju1_gl
+        for il ∈ i1:i2d2
+            tmp = ((8.0 * (qqu[il, ju1+2] - qqu[il, ju1])) + qqu[il+i2d2, ju1+1] - qqu[il, ju1+3]) * r24
 
-		for il = (i1 + i2d2):i2
-			tmp = ((8.0 * (qqu[il, ju1 + 2] - qqu[il, ju1])) + qqu[il - i2d2, ju1 + 1] - qqu[il, ju1 + 3]) * r24
+            pmax = max(qqu[il, ju1], qqu[il, ju1+1], qqu[il, ju1+2]) - qqu[il, ju1+1]
 
-			pmax = max(qqu[il, ju1], qqu[il, ju1 + 1], qqu[il, ju1 + 2]) - qqu[il, ju1 + 1]
+            pmin = qqu(il, ju1 + 1) - min(qqu[il, ju1], qqu[il, ju1+1], qqu[il, ju1+2])
 
-			pmin = qqu[il, ju1 + 1] - min(qqu[il, ju1], qqu[il, ju1 + 1], qqu[il, ju1 + 2])
+            dcy[il, ju1+1] = sign(tmp) * min(abs(tmp), pmin, pmax)
+        end
 
-			dcy[il, ju1 + 1] = sign(tmp) * min(abs(tmp), pmin, pmax)
-		end
-	end
+        for il ∈ (i1+i2d2):i2
+            tmp = ((8.0 * (qqu[il, ju1+2] - qqu[il, ju1])) + qqu[il-i2d2, ju1+1] - qqu[il, ju1+3]) * r24
 
-	if j2 == j2_gl
-		for il = i1:i2d2
-			tmp = ((8.0 * (qqu[il, j2] - qqu[il, j2 - 2])) + qqu[il, j2 - 3] - qqu[il+ i2d2, j2 - 1]) * r24
+            pmax = max(qqu[il, ju1], qqu[il, ju1+1], qqu[il, ju1+2]) - qqu[il, ju1+1]
 
-			pmax = max(qqu[il, j2 - 2], qqu[il, j2 - 1], qqu[il, j2]) - qqu[il, j2 - 1]
+            pmin = qqu[il, ju1+1] - min(qqu[il, ju1], qqu[il, ju1+1], qqu[il, ju1+2])
 
-			pmin = qqu[il, j2 - 1] - min(qqu[il, j2 - 2], qqu[il, j2 - 1], qqu[il, j2])
+            dcy[il, ju1+1] = sign(tmp) * min(abs(tmp), pmin, pmax)
+        end
+    end
 
-			dcy[il, j2 - 1] = sign(tmp) * min(abs(tmp), pmin, pmax)
-		end
+    if j2 == j2_gl
+        for il ∈ i1:i2d2
+            tmp = ((8.0 * (qqu[il, j2] - qqu[il, j2-2])) + qqu[il, j2-3] - qqu[il+i2d2, j2-1]) * r24
 
-		for il = (i1 + i2d2):i2
-			tmp = ((8.0 * (qqu[il, j2] - qqu[il, j2 - 2])) + qqu[il, j2 - 3] - qqu[il - i2d2, j2 - 1]) * r24
+            pmax = max(qqu[il, j2-2], qqu[il, j2-1], qqu[il, j2]) - qqu[il, j2-1]
 
-			pmax = max(qqu[il, j2 - 2], qqu[il, j2 - 1], qqu[il, j2]) - qqu[il, j2 - 1]
+            pmin = qqu[il, j2-1] - min(qqu[il, j2-2], qqu[il, j2-1], qqu[il, j2])
 
-			pmin = qqu[il, j2 - 1] - min(qqu[il, j2 - 2], qqu[il, j2 - 1], qqu[il, j2])
+            dcy[il, j2-1] = sign(tmp) * min(abs(tmp), pmin, pmax)
+        end
 
-			dcy[il, j2 - 1] = sign(tmp) * min(abs(tmp), pmin, pmax)
-		end
-	end
+        for il ∈ (i1+i2d2):i2
+            tmp = ((8.0 * (qqu[il, j2] - qqu[il, j2-2])) + qqu[il, j2-3] - qqu[il-i2d2, j2-1]) * r24
+
+            pmax = max(qqu[il, j2-2], qqu[il, j2-1], qqu[il, j2]) - qqu[il, j2-1]
+
+            pmin = qqu[il, j2-1] - min(qqu[il, j2-2], qqu[il, j2-1], qqu[il, j2])
+
+            dcy[il, j2-1] = sign(tmp) * min(abs(tmp), pmin, pmax)
+        end
+    end
 end
 
 """
@@ -2951,66 +3052,70 @@ John Tannahill, LLNL (jrt@llnl.gov).
 05 Dec 2008 - C. Carouge - Replaced TPCORE routines by S-J Lin and Kevin Yeh with the TPCORE routines from GMI model. This eliminates the polar overshoot in the stratosphere. See https://github.com/geoschem/geos-chem for complete history.
 """
 function do_ymist_pole2_i2d2!(
-	dcy::Matrix{AbstractFloat},
-	qqu::Matrix{AbstractFloat},
-	i1_gl::Integer,
-	i2_gl::Integer,
-	ju1_gl::Integer,
-	j2_gl::Integer,
-	j1p::Integer,
-	ilo::Integer,
-	ihi::Integer,
-	julo::Integer,
-	jhi::Integer,
-	i1::Integer,
-	i2::Integer,
-	ju1::Integer,
-	j2::Integer
+    dcy::Matrix{AbstractFloat},
+    qqu::Matrix{AbstractFloat},
+    i1_gl::Integer,
+    i2_gl::Integer,
+    ju1_gl::Integer,
+    j2_gl::Integer,
+    j1p::Integer,
+    ilo::Integer,
+    ihi::Integer,
+    julo::Integer,
+    jhi::Integer,
+    i1::Integer,
+    i2::Integer,
+    ju1::Integer,
+    j2::Integer
 )::Nothing
-	i2d2 = i2_gl / 2
-	
-	if ju1 == ju1_gl
-		if j1p != ju1_gl + 1
-			dcy[i1:i2, ju1] .= 0.0
-		else
-			# Determine slope in South Polar cap for scalars.
-			for il = i1:i2d2
-				tmp = 0.25 * (qqu[il, ju1 + 1] - qqu[il + i2d2, ju1 + 1])
+    i2d2::Integer = il::Integer = 0
 
-				pmax = max(qqu[il, ju1 + 1], qqu[il, ju1], qqu[il + i2d2, ju1 + 1]) - qqu[il, ju1]
+    pmax::AbstractFloat = pmin::AbstractFloat = tmp::AbstractFloat = 0
 
-				pmin = qqu[il, ju1] - min(qqu[il, ju1 + 1], qqu[il, ju1], qqu[il + i2d2, ju1 + 1])
-							
-				dcy[il, ju1] = sign(tmp) * min(abs(tmp), pmax, pmin)
-			end
+    i2d2 = i2_gl / 2
 
-			for il = (i1 + i2d2):i2
-				dcy[il, ju1] = -dcy[il - i2d2, ju1]
-			end
-		end
-	end
-		
-	if j2 == j2_gl
-		if j1p != ju1_gl + 1
-			dcy[i1:i2, j2] .= 0.0
-		else
-			# Determine slope in North Polar cap for scalars.
+    if ju1 == ju1_gl
+        if j1p != ju1_gl + 1
+            dcy[i1:i2, ju1] .= 0.0
+        else
+            # Determine slope in South Polar cap for scalars.
+            for il ∈ i1:i2d2
+                tmp = 0.25 * (qqu[il, ju1+1] - qqu[il+i2d2, ju1+1])
 
-			for il = i1:i2d2
-				tmp  = 0.25 * (qqu[il + i2d2, j2 - 1] - qqu[il, j2 - 1])
+                pmax = max(qqu[il, ju1+1], qqu[il, ju1], qqu[il+i2d2, ju1+1]) - qqu[il, ju1]
 
-				pmax = max(qqu[il + i2d2, j2 - 1], qqu[il, j2], qqu[il, j2 - 1]) - qqu[il, j2]
+                pmin = qqu[il, ju1] - min(qqu[il, ju1+1], qqu[il, ju1], qqu[il+i2d2, ju1+1])
 
-				pmin = qqu[il, j2] - min(qqu[il + i2d2, j2 - 1], qqu[il, j2], qqu[il, j2 - 1])
+                dcy[il, ju1] = sign(tmp) * min(abs(tmp), pmax, pmin)
+            end
 
-				dcy[il, j2] = sign(tmp) * min(abs(tmp), pmax, pmin)
-			end
+            for il ∈ (i1+i2d2):i2
+                dcy[il, ju1] = -dcy[il-i2d2, ju1]
+            end
+        end
+    end
 
-			for il = (i1 + i2d2):i2
-				dcy[il, j2] = -dcy[il - i2d2, j2]
-			end
-		end
-	end
+    if j2 == j2_gl
+        if j1p != ju1_gl + 1
+            dcy[i1:i2, j2] .= 0.0
+        else
+            # Determine slope in North Polar cap for scalars.
+
+            for il ∈ i1:i2d2
+                tmp = 0.25 * (qqu[il+i2d2, j2-1] - qqu[il, j2-1])
+
+                pmax = max(qqu[il+i2d2, j2-1], qqu[il, j2], qqu[il, j2-1]) - qqu[il, j2]
+
+                pmin = qqu[il, j2] - min(qqu[il+i2d2, j2-1], qqu[il, j2], qqu[il, j2-1])
+
+                dcy[il, j2] = sign(tmp) * min(abs(tmp), pmax, pmin)
+            end
+
+            for il ∈ (i1+i2d2):i2
+                dcy[il, j2] = -dcy[il-i2d2, j2]
+            end
+        end
+    end
 end
 
 """
@@ -3046,91 +3151,98 @@ John Tannahill, LLNL (jrt@llnl.gov).
 05 Dec 2008 - C. Carouge - Replaced TPCORE routines by S - J Lin and Kevin Yeh with the TPCORE routines from GMI model. This eliminates the polar overshoot in the stratosphere. See https://github.com/geoschem/geos - chem for complete history.
 """
 function fyppm!(
-  jlmt::Integer,
-  cry::Matrix{AbstractFloat},
-  dcy::Matrix{AbstractFloat},
-  qqu::Matrix{AbstractFloat},
-  qqv::Matrix{AbstractFloat},
-  j1p::Integer,
-  j2p::Integer,
-  i1_gl::Integer,
-  i2_gl::Integer,
-  ju1_gl::Integer,
-  j2_gl::Integer,
-  ilong::Integer,
-  ilo::Integer,
-  ihi::Integer,
-  julo::Integer,
-  jhi::Integer,
-  i1::Integer,
-  i2::Integer,
-  ju1::Integer,
-  j2::Integer
+    jlmt::Integer,
+    cry::Matrix{AbstractFloat},
+    dcy::Matrix{AbstractFloat},
+    qqu::Matrix{AbstractFloat},
+    qqv::Matrix{AbstractFloat},
+    j1p::Integer,
+    j2p::Integer,
+    i1_gl::Integer,
+    i2_gl::Integer,
+    ju1_gl::Integer,
+    j2_gl::Integer,
+    ilong::Integer,
+    ilo::Integer,
+    ihi::Integer,
+    julo::Integer,
+    jhi::Integer,
+    i1::Integer,
+    i2::Integer,
+    ju1::Integer,
+    j2::Integer
 )::Nothing
-  a61 = zeros(AbstractFloat, ilong * ((jhi - 1) - (julo + 1) + 1))
-  al1 = zeros(AbstractFloat, ilong * ((jhi - 1) - (julo + 1) + 1))
-  ar1 = zeros(AbstractFloat, ilong * ((jhi - 1) - (julo + 1) + 1))
-  dcy1 = zeros(AbstractFloat, ilong * ((jhi - 1) - (julo + 1) + 1))
-  qqu1 = zeros(AbstractFloat, ilong * ((jhi - 1) - (julo + 1) + 1))
-  a6 = zeros(AbstractFloat, ilo:ihi, julo:jhi)
-  al = zeros(AbstractFloat, ilo:ihi, julo:jhi)
-  ar = zeros(AbstractFloat, ilo:ihi, julo:jhi)
+    ijm1::Integer = il::Integer = ij::Integer = lenx::Integer = 0
 
-  # NOTE: The code was writtein with I1:I2 as the first dimension of AL, AR, A6, AL1, A61, AR1. However, the limits should really should be ILO:IHI. In practice, however, for a global grid (and OpenMP parallelization) ILO=I1 and IHI=I2. Nevertheless, we will change the limits to ILO:IHI to be consistent and to avoid future problems. (bmy, 12/5/08)
+    r13::AbstractFloat = r23::AbstractFloat = 0
 
-  r13 = 1.0 / 3.0
-  r23 = 2.0 / 3.0
+    a61::Vector{AbstractFloat} = al1::Vector{AbstractFloat} = ar1::Vector{AbstractFloat} = dcy1::Vector{AbstractFloat} = qqu1::Vector{AbstractFloat} = zeros(AbstractFloat, ilong * ((jhi - 1) - (julo + 1) + 1))
 
-  for ij = (julo + 1):jhi, il = ilo:ihi
-    al[il, ij] = 0.5 * (qqu[il, ij - 1] + qqu[il, ij]) + (dcy[il, ij - 1] - dcy[il, ij]) * r13
-    ar[il, ij - 1] = al[il, ij]
-  end
+    a6::Matrix{AbstractFloat} = al::Matrix{AbstractFloat} = ar::Matrix{AbstractFloat} = zeros(ilo:ihi, julo:jhi)
 
-  # TODO:
-  do_fyppm_pole_i2d2!(al, ar, i1_gl, i2_gl, ju1_gl, j2_gl, ilo, ihi, julo, jhi, i1, i2, ju1, j2)
+    # NOTE: The code was writtein with I1:I2 as the first dimension of AL, AR, A6, AL1, A61, AR1. However, the limits should really should be ILO:IHI. In practice, however, for a global grid (and OpenMP parallelization) ILO=I1 and IHI=I2. Nevertheless, we will change the limits to ILO:IHI to be consistent and to avoid future problems. (bmy, 12/5/08)
 
-  for ij = (julo + 1):(jhi - 1), il = ilo:ihi
-    a6[il, ij] = 3.0 * (qqu[il, ij] + qqu[il, ij] - (al[il, ij] + ar[il, ij]))
-  end
+    r13 = 1.0 / 3.0
+    r23 = 2.0 / 3.0
 
-  if jlmt <= 2
-    lenx = 0
-
-    for ij = (julo + 1):(jhi - 1), il = ilo:ihi
-      lenx = lenx + 1
-
-      a61[lenx] = a6[il, ij]
-      al1[lenx] = al[il, ij]
-      ar1[lenx] = ar[il, ij]
-      dcy1[lenx] = dcy[il, ij]
-      qqu1[lenx] = qqu[il, ij]
+    for ij ∈ (julo+1):jhi
+        for il ∈ ilo:ihi
+            al[il, ij] = 0.5 * (qqu[il, ij-1] + qqu[il, ij]) + (dcy[il, ij-1] - dcy[il, ij]) * r13
+            ar[il, ij-1] = al[il, ij]
+        end
     end
 
     # TODO:
-    lmtppm!(lenx, jlmt, a61, al1, ar1, dcy1, qqu1)
+    do_fyppm_pole_i2d2!(al, ar, i1_gl, i2_gl, ju1_gl, j2_gl, ilo, ihi, julo, jhi, i1, i2, ju1, j2)
 
-    lenx = 0
-
-    for ij = (julo + 1):(jhi - 1), il = ilo:ihi
-      lenx = lenx + 1
-
-      a6[il, ij] = a61[lenx]
-      al[il, ij] = al1[lenx]
-      ar[il, ij] = ar1[lenx]
+    for ij ∈ (julo+1):(jhi-1)
+        for il ∈ ilo:ihi
+            a6[il, ij] = 3.0 * (qqu[il, ij] + qqu[il, ij] - (al[il, ij] + ar[il, ij]))
+        end
     end
-  end
 
-  for ij = j1p:j2p + 1
-    ijm1 = ij - 1
+    if jlmt <= 2
+        lenx = 0
 
-    for il = ilo:ihi
-      if cry[il, ij] > 0.0
-        qqv[il, ij] = ar[il, ijm1] + 0.5 * cry[il, ij] * (al[il, ijm1] - ar[il, ijm1] + (a6[il, ijm1] * (1.0 - (r23 * cry[il, ij]))))
-      else
-        qqv[il, ij] = al[il, ij] - 0.5 * cry[il, ij] * (ar[il, ij] - al[il, ij] + (a6[il, ij] * (1.0 + (r23 * cry[il, ij]))))
-      end
+        for ij ∈ (julo+1):(jhi-1)
+            for il ∈ ilo:ihi
+                lenx = lenx + 1
+
+                a61[lenx] = a6[il, ij]
+                al1[lenx] = al[il, ij]
+                ar1[lenx] = ar[il, ij]
+                dcy1[lenx] = dcy[il, ij]
+                qqu1[lenx] = qqu[il, ij]
+            end
+        end
+
+        # TODO:
+        lmtppm!(lenx, jlmt, a61, al1, ar1, dcy1, qqu1)
+
+        lenx = 0
+
+        for ij ∈ (julo+1):(jhi-1)
+            for il ∈ ilo:ihi
+                lenx = lenx + 1
+
+                a6[il, ij] = a61[lenx]
+                al[il, ij] = al1[lenx]
+                ar[il, ij] = ar1[lenx]
+            end
+        end
     end
-  end
+
+    for ij ∈ j1p:j2p+1
+        ijm1 = ij - 1
+
+        for il ∈ ilo:ihi
+            if cry[il, ij] > 0.0
+                qqv[il, ij] = ar[il, ijm1] + 0.5 * cry[il, ij] * (al[il, ijm1] - ar[il, ijm1] + (a6[il, ijm1] * (1.0 - (r23 * cry[il, ij]))))
+            else
+                qqv[il, ij] = al[il, ij] - 0.5 * cry[il, ij] * (ar[il, ij] - al[il, ij] + (a6[il, ij] * (1.0 + (r23 * cry[il, ij]))))
+            end
+        end
+    end
 end
 
 """
@@ -3160,29 +3272,31 @@ John Tannahill, LLNL (jrt@llnl.gov).
 05 Dec 2008 - C. Carouge - Replaced TPCORE routines by S - J Lin and Kevin Yeh with the TPCORE routines from GMI model. This eliminates the polar overshoot in the stratosphere. See https://github.com/geoschem/geos - chem for complete history
 """
 function do_fyppm_pole_i2d2!(
-  al::Matrix{AbstractFloat},
-  ar::Matrix{AbstractFloat},
-  i1_gl::Integer,
-  i2_gl::Integer,
-  ju1_gl::Integer,
-  j2_gl::Integer,
-  ilo::Integer,
-  ihi::Integer,
-  julo::Integer,
-  jhi::Integer,
-  i1::Integer,
-  i2::Integer,
-  ju1::Integer,
-  j2::Integer
+    al::Matrix{AbstractFloat},
+    ar::Matrix{AbstractFloat},
+    i1_gl::Integer,
+    i2_gl::Integer,
+    ju1_gl::Integer,
+    j2_gl::Integer,
+    ilo::Integer,
+    ihi::Integer,
+    julo::Integer,
+    jhi::Integer,
+    i1::Integer,
+    i2::Integer,
+    ju1::Integer,
+    j2::Integer
 )::Nothing
-  i2d2 = i2_gl / 2
+    i2d2::Integer = il::Integer = 0
 
-  for il = i1:i2d2
-    al[il, ju1] = al[il + i2d2, ju1 + 1]
-    al[il + i2d2, ju1] = al[il, ju1 + 1]
-    ar[il, j2] = ar[il + i2d2, j2 - 1]
-    ar[il + i2d2, j2] = ar[il, j2 - 1]
-  end
+    i2d2 = i2_gl / 2
+
+    for il ∈ i1:i2d2
+        al[il, ju1] = al[il+i2d2, ju1+1]
+        al[il+i2d2, ju1] = al[il, ju1+1]
+        ar[il, j2] = ar[il+i2d2, j2-1]
+        ar[il+i2d2, j2] = ar[il, j2-1]
+    end
 end
 
 """
@@ -3216,66 +3330,68 @@ John Tannahill, LLNL (jrt@llnl.gov).
 05 Dec 2008 - C. Carouge - Replaced TPCORE routines by S - J Lin and Kevin Yeh with the TPCORE routines from GMI model. This eliminates the polar overshoot in the stratosphere. See https://github.com/geoschem/geos - chem for complete history.
 """
 function do_ytp_pole_sum!(
-  geofac_pc::AbstractFloat,
-  dq1::Matrix{AbstractFloat},
-  qqv::Matrix{AbstractFloat},
-  fy::Matrix{AbstractFloat},
-  i1_gl::Integer,
-  i2_gl::Integer,
-  ju1_gl::Integer,
-  j2_gl::Integer,
-  j1p::Integer,
-  j2p::Integer,
-  ilo::Integer,
-  ihi::Integer,
-  julo::Integer,
-  jhi::Integer,
-  i1::Integer,
-  i2::Integer,
-  ju1::Integer,
-  j2::Integer
+    geofac_pc::AbstractFloat,
+    dq1::Matrix{AbstractFloat},
+    qqv::Matrix{AbstractFloat},
+    fy::Matrix{AbstractFloat},
+    i1_gl::Integer,
+    i2_gl::Integer,
+    ju1_gl::Integer,
+    j2_gl::Integer,
+    j1p::Integer,
+    j2p::Integer,
+    ilo::Integer,
+    ihi::Integer,
+    julo::Integer,
+    jhi::Integer,
+    i1::Integer,
+    i2::Integer,
+    ju1::Integer,
+    j2::Integer
 )::Nothing
-  ri2 = i2_gl
+    il::Integer = ik::Integer = 0
 
-  dqik = zeros(AbstractFloat, 2)
+    ri2::AbstractFloat = dq_np::AbstractFloat = dq_sp::AbstractFloat = sumnp::AbstractFloat = sumsp::AbstractFloat = 0
 
-  # ... Integrate N - S flux around polar cap lat circle for each level
+    dqik = zeros(AbstractFloat, 2)
 
-  sumsp = 0.0
-  sumnp = 0.0
-  for il = i1:i2
-    sumsp = sumsp + qqv[il, j1p]
-    sumnp = sumnp + qqv[il, j2p + 1]
-  end
-
-  # ... wrap in E - W direction
-  if i1 == i1_gl
-    dqik[1] = dq1[i1, ju1]
-    dqik[2] = dq1[i1, j2]
-  end
-
-  # ... normalize and set inside polar cap
-
-  dq_sp = dqik[1] - (sumsp / ri2 * geofac_pc)
-  dq_np = dqik[2] + (sumnp / ri2 * geofac_pc)
-
-  for il = i1:i2
-    dq1[il, ju1] = dq_sp
-    dq1[il, j2] = dq_np
-    # ... save polar flux
-    fy[il, ju1] =  - (sumsp / ri2 * geofac_pc)
-    fy[il, j2 + 1] = (sumnp / ri2 * geofac_pc)
-  end
-
-  if j1p != ju1_gl + 1
-    for il = i1:i2
-      dq1[il, ju1 + 1] = dq_sp
-      dq1[il, j2 - 1] = dq_np
-      # ... save polar flux
-      fy[il, ju1 + 1] =  - (sumsp / ri2 * geofac_pc)
-      fy[il, j2] = sumnp / ri2 * geofac_pc
+    ri2 = i2_gl
+    # ... Integrate N - S flux around polar cap lat circle for each level
+    sumsp = 0.0
+    sumnp = 0.0
+    for il ∈ i1:i2
+        sumsp = sumsp + qqv[il, j1p]
+        sumnp = sumnp + qqv[il, j2p+1]
     end
-  end
+
+    # ... wrap in E - W direction
+    if i1 == i1_gl
+        dqik[1] = dq1[i1, ju1]
+        dqik[2] = dq1[i1, j2]
+    end
+
+    # ... normalize and set inside polar cap
+
+    dq_sp = dqik[1] - (sumsp / ri2 * geofac_pc)
+    dq_np = dqik[2] + (sumnp / ri2 * geofac_pc)
+
+    for il ∈ i1:i2
+        dq1[il, ju1] = dq_sp
+        dq1[il, j2] = dq_np
+        # ... save polar flux
+        fy[il, ju1] = -(sumsp / ri2 * geofac_pc)
+        fy[il, j2+1] = (sumnp / ri2 * geofac_pc)
+    end
+
+    if j1p != ju1_gl + 1
+        for il ∈ i1:i2
+            dq1[il, ju1+1] = dq_sp
+            dq1[il, j2-1] = dq_np
+            # ... save polar flux
+            fy[il, ju1+1] = -(sumsp / ri2 * geofac_pc)
+            fy[il, j2] = sumnp / ri2 * geofac_pc
+        end
+    end
 end
 
 """
@@ -3314,273 +3430,288 @@ John Tannahill, LLNL (jrt@llnl.gov).
 05 Dec 2008 - C. Carouge - Replaced TPCORE routines by S - J Lin and Kevin Yeh with the TPCORE routines from GMI model. This eliminates the polar overshoot in the stratosphere. See https://github.com/geoschem/geos - chem for complete history
 """
 function fzppm!(
-  klmt::Integer,
-  delp1::Array{AbstractFloat,3},
-  wz::Array{AbstractFloat,3},
-  dq1::Array{AbstractFloat,3},
-  qq1::Array{AbstractFloat,3},
-  fz::Array{AbstractFloat,3},
-  j1p::Integer,
-  ju1_gl::Integer,
-  j2_gl::Integer,
-  ilo::Integer,
-  ihi::Integer,
-  julo::Integer,
-  jhi::Integer,
-  ilong::Integer,
-  ivert::Integer,
-  i1::Integer,
-  i2::Integer,
-  ju1::Integer,
-  j2::Integer,
-  k1::Integer,
-  k2::Integer
+    klmt::Integer,
+    delp1::Array{AbstractFloat,3},
+    wz::Array{AbstractFloat,3},
+    dq1::Array{AbstractFloat,3},
+    qq1::Array{AbstractFloat,3},
+    fz::Array{AbstractFloat,3},
+    j1p::Integer,
+    ju1_gl::Integer,
+    j2_gl::Integer,
+    ilo::Integer,
+    ihi::Integer,
+    julo::Integer,
+    jhi::Integer,
+    ilong::Integer,
+    ivert::Integer,
+    i1::Integer,
+    i2::Integer,
+    ju1::Integer,
+    j2::Integer,
+    k1::Integer,
+    k2::Integer
 )::Nothing
-  a61 = zeros(AbstractFloat, ilong * (ivert - 4))
-  al1 = zeros(AbstractFloat, ilong * (ivert - 4))
-  ar1 = zeros(AbstractFloat, ilong * (ivert - 4))
-  dca1 = zeros(AbstractFloat, ilong * (ivert - 4))
-  qq1a1 = zeros(AbstractFloat, ilong * (ivert - 4))
+    il::Integer = ij::Integer = ik::Integer = k1p1::Integer = k1p2::Integer = k2m1::Integer = k2m2::Integer = lenx::Integer = 0
 
-  a6 = zeros(AbstractFloat, i1:i2, k1:k2)
-  al = zeros(AbstractFloat, i1:i2, k1:k2)
-  ar = zeros(AbstractFloat, i1:i2, k1:k2)
-  dca = zeros(AbstractFloat, i1:i2, k1:k2)
-  dlp1a = zeros(AbstractFloat, i1:i2, k1:k2)
-  qq1a = zeros(AbstractFloat, i1:i2, k1:k2)
-  wza = zeros(AbstractFloat, i1:i2, k1:k2)
+    a1::AbstractFloat = a2::AbstractFloat = aa::AbstractFloat = bb::AbstractFloat = c0::AbstractFloat = c1::AbstractFloat = c2::AbstractFloat = cm::AbstractFloat = cp::AbstractFloat = fac1::AbstractFloat = fac2::AbstractFloat = lac::AbstractFloat = qmax::AbstractFloat = qmin::AbstractFloat = qmp::AbstractFloat = r13::AbstractFloat = r23::AbstractFloat = tmp::AbstractFloat = 0
 
-  dc = zeros(AbstractFloat, i1:i2, ju1:j2, k1:k2)
+    a61::Vector{AbstractFloat} = al1::Vector{AbstractFloat} = ar1::Vector{AbstractFloat} = dca1::Vector{AbstractFloat} = qq1a1::Vector{AbstractFloat} = zeros(ilong * (ivert - 4))
 
-  # Work array
-  dp = zeros(AbstractFloat, i1:i2, ju1:j2, k1:k2)
+    a6::Matrix{AbstractFloat} = al::Matrix{AbstractFloat} = ar::Matrix{AbstractFloat} = dca::Matrix{AbstractFloat} = dlp1a::Matrix{AbstractFloat} = qq1a::Matrix{AbstractFloat} = wza::Matrix{AbstractFloat} = zeros(i1:i2, k1:k2)
 
-  # .sds... diagnostic vertical flux for species - set top to 0.0
-  fz[:, :, :] .= zeros(AbstractFloat, ilo:ihi, julo:jhi, k1:k2)
+    dc::Array{AbstractFloat,3} = zeros(i1:i2, ju1:j2, k1:k2)
+    # Work array
+    dpi::Array{AbstractFloat,3} = zeros(i1:i2, ju1:j2, k1:k2)
 
-  k1p1 = k1 + 1
-  k1p2 = k1 + 2
+    # .sds... diagnostic vertical flux for species - set top to 0.0
+    fz[:, :, :] .= zeros(AbstractFloat, ilo:ihi, julo:jhi, k1:k2)
 
-  k2m1 = k2 - 1
-  k2m2 = k2 - 2
+    k1p1 = k1 + 1
+    k1p2 = k1 + 2
 
-  r13 = 1.0 / 3.0
-  r23 = 2.0 / 3.0
+    k2m1 = k2 - 1
+    k2m2 = k2 - 2
 
-  # Compute dc for PPM.
+    r13 = 1.0 / 3.0
+    r23 = 2.0 / 3.0
 
-  for ik = k1:k2m1
-    dpi[:, :, ik] .= qq1[i1:i2, ju1:j2, ik + 1] - qq1[i1:i2, ju1:j2, ik]
-  end
+    # Compute dc for PPM.
 
-  for ik = k1p1:k2m1, ij = ju1:j2, il = i1:i2
-    c0 = delp1[il, ij, ik] / (delp1[il, ij, ik - 1] + delp1[il, ij, ik] + delp1[il, ij, ik + 1])
-    c1 = (delp1[il, ij, ik - 1] + (0.5 * delp1[il, ij, ik])) / (delp1[il, ij, ik + 1] + delp1[il, ij, ik])
-    c2 = (delp1[il, ij, ik + 1] + (0.5 * delp1[il, ij, ik])) / (delp1[il, ij, ik - 1] + delp1[il, ij, ik])
-
-    tmp = c0 * ((c1 * dpi[il, ij, ik]) + (c2 * dpi[il, ij, ik - 1]))
-
-    qmin = qq1[il, ij, ik] - min(qq1[il, ij, ik - 1], qq1[il, ij, ik], qq1[il, ij, ik + 1])
-    qmax = max(qq1[il, ij, ik - 1], qq1[il, ij, ik], qq1[il, ij, ik + 1]) - qq1[il, ij, ik]
-
-    dc[il, ij, ik] = min(abs(tmp), qmax, qmin) * sign(tmp)
-  end
-
-  # c?
-  # Loop over latitudes (to save memory).
-
-  for ij = ju1:j2 
-    if (ij == ju1_gl + 1 || ij == j2_gl - 1) && (j1p != ju1_gl + 1)
-      @goto ijloop
+    for ik ∈ k1:k2m1
+        dpi[:, :, ik] .= qq1[i1:i2, ju1:j2, ik+1] - qq1[i1:i2, ju1:j2, ik]
     end
 
-    for ik = k1:k2, il = i1:i2
-      dca[il, ik] = dc[il, ij, ik] # the monotone slope
-      wza[il, ik] = wz[il, ij, ik]
-      dlp1a[il, ik] = delp1[il, ij, ik]
-      qq1a[il, ik] = qq1[il, ij, ik]
+    for ik ∈ k1p1:k2m1
+        for ij ∈ ju1:j2
+            for il ∈ i1:i2
+                c0 = delp1[il, ij, ik] / (delp1[il, ij, ik-1] + delp1[il, ij, ik] + delp1[il, ij, ik+1])
+                c1 = (delp1[il, ij, ik-1] + (0.5 * delp1[il, ij, ik])) / (delp1[il, ij, ik+1] + delp1[il, ij, ik])
+                c2 = (delp1[il, ij, ik+1] + (0.5 * delp1[il, ij, ik])) / (delp1[il, ij, ik-1] + delp1[il, ij, ik])
+
+                tmp = c0 * ((c1 * dpi[il, ij, ik]) + (c2 * dpi[il, ij, ik-1]))
+
+                qmin = qq1[il, ij, ik] - min(qq1[il, ij, ik-1], qq1[il, ij, ik], qq1[il, ij, ik+1])
+                qmax = max(qq1[il, ij, ik-1], qq1[il, ij, ik], qq1[il, ij, ik+1]) - qq1[il, ij, ik]
+
+                dc[il, ij, ik] = min(abs(tmp), qmax, qmin) * sign(tmp)
+            end
+        end
     end
 
-    # Compute first guesses at cell interfaces. First guesses are required to be continuous. Three - cell parabolic subgrid distribution at model top; two - cell parabolic with zero gradient subgrid distribution at the surface.
+    # c?
+    # Loop over latitudes (to save memory).
 
-    # First guess top edge value.
+    for ij ∈ ju1:j2
+        if (ij == ju1_gl + 1 || ij == j2_gl - 1) && (j1p != ju1_gl + 1)
+            continue
+        end
 
-    for il = i1:i2
-      # Three - cell PPM; compute a, b, & c of q = aP^2 + bP + c using cell averages and dlp1a.
+        for ik ∈ k1:k2
+            for il ∈ i1:i2
+                dca[il, ik] = dc[il, ij, ik] # the monotone slope
+                wza[il, ik] = wz[il, ij, ik]
+                dlp1a[il, ik] = delp1[il, ij, ik]
+                qq1a[il, ik] = qq1[il, ij, ik]
+            end
+        end
 
-      fac1 = dpi[il, ij, k1p1] - dpi[il, ij, k1] * (dlp1a[il, k1p1] + dlp1a[il, k1p2]) / (dlp1a[il, k1] + dlp1a[il, k1p1])
+        # Compute first guesses at cell interfaces. First guesses are required to be continuous. Three - cell parabolic subgrid distribution at model top; two - cell parabolic with zero gradient subgrid distribution at the surface.
 
-      fac2 = (dlp1a[il, k1p1] + dlp1a[il, k1p2]) * (dlp1a[il, k1] + dlp1a[il, k1p1] + dlp1a[il, k1p2])
+        # First guess top edge value.
 
-      aa = 3.0 * fac1 / fac2
+        for il ∈ i1:i2
+            # Three - cell PPM; compute a, b, & c of q = aP^2 + bP + c using cell averages and dlp1a.
 
-      bb = 2.0 * dpi[il, ij, k1] / (dlp1a[il, k1] + dlp1a[il, k1p1]) - r23 * aa * (2.0 * dlp1a[il, k1] + dlp1a[il, k1p1])
+            fac1 = dpi[il, ij, k1p1] - dpi[il, ij, k1] * (dlp1a[il, k1p1] + dlp1a[il, k1p2]) / (dlp1a[il, k1] + dlp1a[il, k1p1])
 
-      al[il, k1] = qq1a[il, k1] - dlp1a[il, k1] * (r13 * aa * dlp1a[il, k1] + 0.5 * bb)
+            fac2 = (dlp1a[il, k1p1] + dlp1a[il, k1p2]) * (dlp1a[il, k1] + dlp1a[il, k1p1] + dlp1a[il, k1p2])
 
-      al[il, k1p1] = dlp1a[il, k1] * (aa * dlp1a[il, k1] + bb) + al[il, k1]
+            aa = 3.0 * fac1 / fac2
 
-      # Check if change sign.
+            bb = 2.0 * dpi[il, ij, k1] / (dlp1a[il, k1] + dlp1a[il, k1p1]) - r23 * aa * (2.0 * dlp1a[il, k1] + dlp1a[il, k1p1])
 
-      if qq1a[il, k1] * al[il, k1] <= 0.0
-        al[il, k1] = 0.0
-        dca[il, k1] = 0.0
-      else
-        dca[il, k1] = qq1a[il, k1] - al[il, k1]
-      end
+            al[il, k1] = qq1a[il, k1] - dlp1a[il, k1] * (r13 * aa * dlp1a[il, k1] + 0.5 * bb)
+
+            al[il, k1p1] = dlp1a[il, k1] * (aa * dlp1a[il, k1] + bb) + al[il, k1]
+
+            # Check if change sign.
+
+            if qq1a[il, k1] * al[il, k1] <= 0.0
+                al[il, k1] = 0.0
+                dca[il, k1] = 0.0
+            else
+                dca[il, k1] = qq1a[il, k1] - al[il, k1]
+            end
+        end
+
+        # Bottom.
+        for il ∈ i1:i2
+            # 2 - cell PPM with zero gradient right at the surface.
+
+            fac1 = dpi[il, ij, k2m1] * (dlp1a[il, k2] * dlp1a[il, k2]) / ((dlp1a[il, k2] + dlp1a[il, k2m1]) * (2.0 * dlp1a[il, k2] + dlp1a[il, k2m1]))
+
+            ar[il, k2] = qq1a[il, k2] + fac1
+            al[il, k2] = qq1a[il, k2] - (fac1 + fac1)
+
+            if qq1a[il, k2] * ar[il, k2] <= 0.0
+                ar[il, k2] = 0.0
+            end
+
+            dca[il, k2] = ar[il, k2] - qq1a[il, k2]
+        end
+
+        # 4th order interpolation in the interior.
+
+        for ik ∈ k1p2:k2m1
+            for il ∈ i1:i2
+                c1 = (dpi[il, ij, ik-1] * dlp1a[il, ik-1]) / (dlp1a[il, ik-1] + dlp1a[il, ik])
+                c2 = 2.0 / (dlp1a[il, ik-2] + dlp1a[il, ik-1] + dlp1a[il, ik] + dlp1a[il, ik+1])
+
+                a1 = (dlp1a[il, ik-2] + dlp1a[il, ik-1]) / (2.0 * dlp1a[il, ik-1] + dlp1a[il, ik])
+                a2 = (dlp1a[il, ik] + dlp1a[il, ik+1]) / (2.0 * dlp1a[il, ik] + dlp1a[il, ik-1])
+
+                al[il, ik] = qq1a[il, ik-1] + c1 + c2 * (dlp1a[il, ik] * (c1 * (a1 - a2) + a2 * dca[il, ik-1]) - dlp1a[il, ik-1] * a1 * dca[il, ik])
+            end
+        end
+
+        for ik ∈ k1:k2m1
+            for il ∈ i1:i2
+                ar[il, ik] = al[il, ik+1]
+            end
+        end
+
+        # Top & Bottom 2 layers always monotonic.
+
+        lenx = i2 - i1 + 1
+
+        for ik ∈ k1:k1p1
+            for il ∈ i1:i2
+                a6[il, ik] = 3.0 * (qq1a[il, ik] + qq1a[il, ik] - (al[il, ik] + ar[il, ik]))
+            end
+
+            # TODO:
+            lmtppm!(lenx, 0, a6[i1, ik], al[i1, ik], ar[i1, ik], dca[i1, ik], qq1a[i1, ik])
+        end
+
+        for ik ∈ k2m1:k2
+            for il ∈ i1:i2
+                a6[il, ik] = 3.0 * (qq1a[il, ik] + qq1a[il, ik] - (al[il, ik] + ar[il, ik]))
+            end
+
+            lmtppm!(lenx, 0, a6[i1, ik], al[i1, ik], ar[i1, ik], dca[i1, ik], qq1a[i1, ik])
+        end
+
+        # Interior depending on klmt.
+
+        if klmt == 4
+            # KORD=7, Huynh"s 2nd constraint.
+
+            for ik ∈ k1p1:k2m1
+                for il ∈ i1:i2
+                    dca[il, ik] = dpi[il, ij, ik] - dpi[il, ij, ik-1]
+                end
+            end
+
+            for ik ∈ k1p2:k2m2
+                for il ∈ i1:i2
+                    # Right edges.
+
+                    qmp = qq1a[il, ik] + (2.0 * dpi[il, ij, ik-1])
+                    lac = qq1a[il, ik] + (1.5 * dca[il, ik-1]) + (0.5 * dpi[il, ij, ik-1])
+                    qmin = min(qq1a[il, ik], qmp, lac)
+                    qmax = max(qq1a[il, ik], qmp, lac)
+
+                    ar[il, ik] = min(max(ar[il, ik], qmin), qmax)
+
+                    # Left edges.
+
+                    qmp = qq1a[il, ik] - (2.0 * dpi[il, ij, ik])
+                    lac = qq1a[il, ik] + (1.5 * dca[il, ik+1]) - (0.5 * dpi[il, ij, ik])
+                    qmin = min(qq1a[il, ik], qmp, lac)
+                    qmax = max(qq1a[il, ik], qmp, lac)
+
+                    al[il, ik] = min(max(al[il, ik], qmin), qmax)
+
+                    # Recompute a6.
+
+                    a6[il, ik] = 3.0 * (qq1a[il, ik] + qq1a[il, ik] - (ar[il, ik] + al[il, ik]))
+                end
+            end
+        elseif klmt <= 2
+            lenx = 0
+
+            for ik ∈ k1p2:k2m2
+                for il ∈ i1:i2
+                    lenx = lenx + 1
+
+                    al1[lenx] = al[il, ik]
+                    ar1[lenx] = ar[il, ik]
+                    dca1[lenx] = dca[il, ik]
+                    qq1a1[lenx] = qq1a[il, ik]
+
+                    a61[lenx] = 3.0 * (qq1a1[lenx] + qq1a1[lenx] - (al1[lenx] + ar1[lenx]))
+                end
+            end
+
+            # TODO:
+            lmtppm!(lenx, klmt, a61, al1, ar1, dca1, qq1a1)
+
+            lenx = 0
+            for ik ∈ k1p2:k2m2
+                for il ∈ i1:i2
+                    lenx = lenx + 1
+
+                    a6[il, ik] = a61[lenx]
+                    al[il, ik] = al1[lenx]
+                    ar[il, ik] = ar1[lenx]
+                    dca[il, ik] = dca1[lenx]
+                    qq1a[il, ik] = qq1a1[lenx]
+                end
+            end
+        end
+
+        for ik ∈ k1:k2m1
+            for il ∈ i1:i2
+                if wza[il, ik] > 0.0
+                    cm = wza[il, ik] / dlp1a[il, ik]
+
+                    dca[il, ik+1] = ar[il, ik] + 0.5 * cm * (al[il, ik] - ar[il, ik] + a6[il, ik] * (1.0 - r23 * cm))
+                else
+                    cp = wza[il, ik] / dlp1a[il, ik+1]
+
+                    dca[il, ik+1] = al[il, ik+1] + 0.5 * cp * (al[il, ik+1] - ar[il, ik+1] - a6[il, ik+1] * [1.0 + r23 * cp])
+
+                end
+            end
+        end
+
+        for ik ∈ k1:k2m1
+            for il ∈ i1:i2
+                dca[il, ik+1] = wza[il, ik] * dca[il, ik+1]
+                # .sds.. save vertical flux for species as diagnostic
+                fz[il, ij, ik+1] = dca[il, ik+1]
+            end
+        end
+
+        for il ∈ i1:i2
+            dq1[il, ij, k1] = dq1[il, ij, k1] - dca[il, k1p1]
+            dq1[il, ij, k2] = dq1[il, ij, k2] + dca[il, k2]
+        end
+
+        for ik ∈ k1p1:k2m1
+            for il ∈ i1:i2
+                dq1[il, ij, ik] = dq1[il, ij, ik] + dca[il, ik] - dca[il, ik+1]
+            end
+        end
     end
-
-    # Bottom.
-    for il = i1:i2
-      # 2 - cell PPM with zero gradient right at the surface.
-
-      fac1 = dpi[il, ij, k2m1] * (dlp1a[il, k2] * dlp1a[il, k2]) / ((dlp1a[il, k2] + dlp1a[il, k2m1]) * (2.0 * dlp1a[il, k2] + dlp1a[il, k2m1]))
-
-      ar[il, k2] = qq1a[il, k2] + fac1
-      al[il, k2] = qq1a[il, k2] - (fac1 + fac1)
-
-      if qq1a[il, k2] * ar[il, k2] <= 0.0
-        ar[il, k2] = 0.0
-      end
-
-      dca[il, k2] = ar[il, k2] - qq1a[il, k2]
-    end
-
-    # 4th order interpolation in the interior.
-
-    for ik = k1p2:k2m1, il = i1:i2
-      c1 = (dpi[il, ij, ik - 1] * dlp1a[il, ik - 1]) / (dlp1a[il, ik - 1] + dlp1a[il, ik])
-      c2 = 2.0 / (dlp1a[il, ik - 2] + dlp1a[il, ik - 1] + dlp1a[il, ik] + dlp1a[il, ik + 1])
-
-      a1 = (dlp1a[il, ik - 2] + dlp1a[il, ik - 1]) / (2.0 * dlp1a[il, ik - 1] + dlp1a[il, ik])
-      a2 = (dlp1a[il, ik] + dlp1a[il, ik + 1]) / (2.0 * dlp1a[il, ik] + dlp1a[il, ik - 1])
-
-      al[il, ik] = qq1a[il, ik - 1] + c1 + c2 * (dlp1a[il, ik] * (c1 * (a1 - a2) + a2 * dca[il, ik - 1]) - dlp1a[il, ik - 1] * a1 * dca[il, ik])
-    end
-
-    for ik = k1:k2m1, il = i1:i2
-      ar[il, ik] = al[il, ik + 1]
-    end
-
-    # Top & Bottom 2 layers always monotonic.
-
-    lenx = i2 - i1 + 1
-
-    for ik = k1:k1p1
-      for il = i1:i2
-        a6[il, ik] = 3.0 * (qq1a[il, ik] + qq1a[il, ik] - (al[il, ik] + ar[il, ik]))
-      end
-
-      # TODO:
-      lmtppm!(lenx, 0, a6[i1, ik], al[i1, ik], ar[i1, ik], dca[i1, ik], qq1a[i1, ik])
-    end
-
-    for ik = k2m1:k2
-      for il = i1:i2
-        a6[il, ik] = 3.0 * (qq1a[il, ik] + qq1a[il, ik] - (al[il, ik] + ar[il, ik]))
-      end
-
-      lmtppm!(lenx, 0, a6[i1, ik], al[i1, ik], ar[i1, ik], dca[i1, ik], qq1a[i1, ik])
-    end
-
-    # Interior depending on klmt.
-
-    if klmt == 4
-      # KORD=7, Huynh"s 2nd constraint.
-
-      for ik = k1p1:k2m1, il = i1:i2
-        dca[il, ik] = dpi[il, ij, ik] - dpi[il, ij, ik - 1]
-      end
-
-      for ik = k1p2:k2m2, il = i1:i2
-        # Right edges.
-
-        qmp = qq1a[il, ik] + (2.0 * dpi[il, ij, ik - 1])
-        lac = qq1a[il, ik] + (1.5 * dca[il, ik - 1]) + (0.5 * dpi[il, ij, ik - 1])
-        qmin = min(qq1a[il, ik], qmp, lac)
-        qmax = max(qq1a[il, ik], qmp, lac)
-
-        ar[il, ik] = min(max(ar[il, ik], qmin), qmax)
-
-        # Left edges.
-
-        qmp = qq1a[il, ik] - (2.0 * dpi[il, ij, ik])
-        lac = qq1a[il, ik] + (1.5 * dca[il, ik + 1]) - (0.5 * dpi[il, ij, ik])
-        qmin = min(qq1a[il, ik], qmp, lac)
-        qmax = max(qq1a[il, ik], qmp, lac)
-
-        al[il, ik] = min(max(al[il, ik], qmin), qmax)
-
-        # Recompute a6.
-
-        a6[il, ik] = 3.0 * (qq1a[il, ik] + qq1a[il, ik] - (ar[il, ik] + al[il, ik]))
-      end
-    elseif klmt <= 2
-      lenx = 0
-
-      for ik = k1p2:k2m2, il = i1:i2
-        lenx = lenx + 1
-
-        al1[lenx] = al[il, ik]
-        ar1[lenx] = ar[il, ik]
-        dca1[lenx] = dca[il, ik]
-        qq1a1[lenx] = qq1a[il, ik]
-
-        a61[lenx] = 3.0 * (qq1a1[lenx] + qq1a1[lenx] - (al1[lenx] + ar1[lenx]))
-      end
-
-      # TODO:
-      lmtppm!(lenx, klmt, a61, al1, ar1, dca1, qq1a1)
-
-      lenx = 0
-      for ik = k1p2:k2m2, il = i1:i2
-        lenx = lenx + 1
-
-        a6[il, ik] = a61[lenx]
-        al[il, ik] = al1[lenx]
-        ar[il, ik] = ar1[lenx]
-        dca[il, ik] = dca1[lenx]
-        qq1a[il, ik] = qq1a1[lenx]
-      end
-    end
-
-    for ik = k1:k2m1, il = i1:i2
-      if wza[il, ik] > 0.0
-        cm = wza[il, ik] / dlp1a[il, ik]
-
-        dca[il, ik + 1] = ar[il, ik] + 0.5 * cm * (al[il, ik] - ar[il, ik] + a6[il, ik] * (1.0 - r23 * cm))
-      else
-        cp = wza[il, ik] / dlp1a[il, ik + 1]
-
-        dca[il, ik + 1] = al[il, ik + 1] + 0.5 * cp * (al[il, ik + 1] - ar[il, ik + 1] - a6[il, ik + 1] * [1.0 + r23 * cp])
-
-      end
-    end
-
-    for ik = k1:k2m1, il = i1:i2
-      dca[il, ik + 1] = wza[il, ik] * dca[il, ik + 1]
-      # .sds.. save vertical flux for species as diagnostic
-      fz[il, ij, ik + 1] = dca[il, ik + 1]
-    end
-
-    for il = i1:i2
-      dq1[il, ij, k1] = dq1[il, ij, k1] - dca[il, k1p1]
-      dq1[il, ij, k2] = dq1[il, ij, k2] + dca[il, k2]
-    end
-
-    for ik = k1p1:k2m1, il = i1:i2
-      dq1[il, ij, ik] = dq1[il, ij, ik] + dca[il, ik] - dca[il, ik + 1]
-    end
-		
-		@label ijloop
-  end
 end
 
 """
 Averages pressure at the Poles when the Polar cap is enlarged. It makes the last two latitudes equal.
 
 ## Arguments
-- `area_1d::Array{AbstractFloat}` - (ju1:j2) - IN - Surface area of grid box
+- `area_1d::Vector{AbstractFloat}` - (ju1:j2) - IN - Surface area of grid box
 - `press::Matrix{AbstractFloat}` - (ilo:ihi, julo:jhi) - INOUT - Surface pressure [hPa]
 - `i1::Integer` - IN - Local min longitude
 - `i2::Integer` - IN - Local max longitude
@@ -3602,58 +3733,65 @@ function from pjc_pfix. Call this one once everything is working fine.
 05 Dec 2008 - C. Carouge  - Replaced TPCORE routines by S - J Lin and Kevin Yeh with the TPCORE routines from GMI model. This eliminates the polar overshoot in the stratosphere. See https://github.com/geoschem/geos - chem for complete history.
 """
 function average_press_poles!(
-  area_1d::Array{AbstractFloat},
-  press::Matrix{AbstractFloat},
-  i1::Integer,
-  i2::Integer,
-  ju1::Integer,
-  j2::Integer,
-  ilo::Integer,
-  ihi::Integer,
-  julo::Integer,
-  jhi::Integer
+    area_1d::Vector{AbstractFloat},
+    press::Matrix{AbstractFloat},
+    i1::Integer,
+    i2::Integer,
+    ju1::Integer,
+    j2::Integer,
+    ilo::Integer,
+    ihi::Integer,
+    julo::Integer,
+    jhi::Integer
 )::Nothing
-  # Compute the sum of surface area
+    i::Integer = j::Integer = 0
+    meanp::AbstractFloat = 0
 
-  rel_area = zeros(AbstractFloat, ju1:j2)
-  # TODO: looks like a map
-  sum_area = sum[area_1d] * i2
-  # calculate rel_area for each lat. (ccc, 11/20/08)
-  for j = ju1:j2
-    rel_area[j] = area_1d[j] / sum_area
-  end
+    rel_area::Vector{AbstractFloat} = zeros(ju1:j2)
 
-  # South Pole
+    # Compute the sum of surface area
+    # TODO: looks like a map
+    sum_area = sum[area_1d] * i2
+    # calculate rel_area for each lat. (ccc, 11/20/08)
+    for j ∈ ju1:j2
+        rel_area[j] = area_1d[j] / sum_area
+    end
 
-  # Surface area of the S. Polar cap
-  sum_area = sum(rel_area[ju1:(ju1 + 1)]) * i2
+    # South Pole
 
-  # TODO: This looks like a reduce
-  # Zero
-  meanp = 0.0
-  # Sum pressure * surface area over the S. Polar cap
-  for j = ju1:(ju1 + 1), i = i1:i2
-    meanp = meanp + (rel_area[j] * press[i, j])
-  end
+    # Surface area of the S. Polar cap
+    sum_area = sum(rel_area[ju1:(ju1+1)]) * i2
 
-  # Normalize pressure in all grid boxes w/in the S. Polar cap
-  press[:, ju1:(ju1 + 1)] .= meanp / sum_area
+    # TODO: This looks like a reduce
+    # Zero
+    meanp = 0.0
+    # Sum pressure * surface area over the S. Polar cap
+    for j ∈ ju1:(ju1+1)
+        for i ∈ i1:i2
+            meanp = meanp + (rel_area[j] * press[i, j])
+        end
+    end
 
-  # North Pole
+    # Normalize pressure in all grid boxes w/in the S. Polar cap
+    press[:, ju1:(ju1+1)] .= meanp / sum_area
 
-  # Surface area of the N. Polar cap
-  sum_area = sum(rel_area[(j2 - 1):j2]) * i2
+    # North Pole
 
-  # TODO: This looks like a reduce
-  # Zero
-  meanp = 0.0
-  # ! Sum pressure * surface area over the N. Polar cap
-  for j = (j2 - 1):j2, i = i1:i2
-    meanp = meanp + (rel_area[j] * press[i, j])
-  end
+    # Surface area of the N. Polar cap
+    sum_area = sum(rel_area[(j2-1):j2]) * i2
 
-  # ! Normalize pressure in all grid boxes w/in the N. Polar cap
-  press[:, (j2 - 1):j2] .= meanp / sum_area
+    # TODO: This looks like a reduce
+    # Zero
+    meanp = 0.0
+    # ! Sum pressure * surface area over the N. Polar cap
+    for j ∈ (j2-1):j2
+        for i ∈ i1:i2
+            meanp = meanp + (rel_area[j] * press[i, j])
+        end
+    end
+
+    # ! Normalize pressure in all grid boxes w/in the N. Polar cap
+    press[:, (j2-1):j2] .= meanp / sum_area
 end
 
 end # module tpcore_fvdas_mod
