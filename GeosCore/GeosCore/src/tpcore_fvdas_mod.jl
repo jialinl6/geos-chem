@@ -1,136 +1,136 @@
-"""
-------------------------------------------------------------------------------
-                  GEOS-Chem Global Chemical Transport Model                  !
-------------------------------------------------------------------------------
-BOP
+# """
+# ------------------------------------------------------------------------------
+#                   GEOS-Chem Global Chemical Transport Model                  !
+# ------------------------------------------------------------------------------
+# BOP
 
- !MODULE: tpcore_fvdas_mod.F90
+#  !MODULE: tpcore_fvdas_mod.F90
 
- !DESCRIPTION: \subsection*{Overview}
-  Module Tpcore\_Fvdas\_Mod contains routines for the TPCORE
-  transport scheme, as implemented in the GMI model (cf. John Tannahill),
-  based on Lin \ Rood 1995.  The Harvard Atmospheric Chemistry Modeling Group
-  has added modifications to implement the Philip-Cameron Smith pressure
-  fixer for mass conservation.  Mass flux diagnostics have also been added.
+#  !DESCRIPTION: \subsection*{Overview}
+#   Module Tpcore\_Fvdas\_Mod contains routines for the TPCORE
+#   transport scheme, as implemented in the GMI model (cf. John Tannahill),
+#   based on Lin \ Rood 1995.  The Harvard Atmospheric Chemistry Modeling Group
+#   has added modifications to implement the Philip-Cameron Smith pressure
+#   fixer for mass conservation.  Mass flux diagnostics have also been added.
 
-\subsection*{References}
-  \begin{enumerate}
-  \item Lin, S.-J., and R. B. Rood, 1996: \emph{Multidimensional flux
-         form semi-Lagrangian transport schemes},
-         \underline{ Mon. Wea. Rev.}, \textbf{124}, 2046-2070.
-  \item Lin, S.-J., W. C. Chao, Y. C. Sud, and G. K. Walker, 1994:
-         \emph{A class of the van Leer-type transport schemes and its
-         applications to the moisture transport in a General Circulation
-         Model}, \underline{Mon. Wea. Rev.}, \textbf{122}, 1575-1593.
-  \end{enumerate}
+# \subsection*{References}
+#   \begin{enumerate}
+#   \item Lin, S.-J., and R. B. Rood, 1996: \emph{Multidimensional flux
+#          form semi-Lagrangian transport schemes},
+#          \underline{ Mon. Wea. Rev.}, \textbf{124}, 2046-2070.
+#   \item Lin, S.-J., W. C. Chao, Y. C. Sud, and G. K. Walker, 1994:
+#          \emph{A class of the van Leer-type transport schemes and its
+#          applications to the moisture transport in a General Circulation
+#          Model}, \underline{Mon. Wea. Rev.}, \textbf{122}, 1575-1593.
+#   \end{enumerate}
 
-\subsection*{Selecting E/W, N/S and vertical advection options}
+# \subsection*{Selecting E/W, N/S and vertical advection options}
 
-  The flags IORD, JORD, KORD select which transport schemes are used in the
-  E/W, N/S, and vertical directions, respectively.  Here is a list of the
-  possible values that IORD, JORD, KORD may be set to (original notes from
-  S-J Lin):
+#   The flags IORD, JORD, KORD select which transport schemes are used in the
+#   E/W, N/S, and vertical directions, respectively.  Here is a list of the
+#   possible values that IORD, JORD, KORD may be set to (original notes from
+#   S-J Lin):
 
-  \begin{enumerate}
-  \item 1st order upstream scheme (too diffusive, not a real option;
-         it can be used for debugging purposes; this is THE only known
-         "linear" monotonic advection scheme.).
-  \item 2nd order van Leer (full monotonicity constraint;
-         see Lin et al 1994, MWR)
-  \item monotonic PPM* (Collela \& Woodward 1984)
-  \item semi-monotonic PPM (same as 3, but overshoots are allowed)
-  \item positive-definite PPM (constraint on the subgrid distribution is
-         only strong enough to prevent generation of negative values;
-         both overshoots \& undershoots are possible).
-  \item un-constrained PPM (nearly diffusion free; faster but
-         positivity of the subgrid distribution is not quaranteed. Use
-         this option only when the fields and winds are very smooth.
-  \item Huynh/Van Leer/Lin full monotonicity constraint.  Only KORD can be
-         set to 7 to enable the use of Huynh's 2nd monotonicity constraint
-         for piece-wise parabolic distribution.
-  \end {enumerate}
+#   \begin{enumerate}
+#   \item 1st order upstream scheme (too diffusive, not a real option;
+#          it can be used for debugging purposes; this is THE only known
+#          "linear" monotonic advection scheme.).
+#   \item 2nd order van Leer (full monotonicity constraint;
+#          see Lin et al 1994, MWR)
+#   \item monotonic PPM* (Collela \& Woodward 1984)
+#   \item semi-monotonic PPM (same as 3, but overshoots are allowed)
+#   \item positive-definite PPM (constraint on the subgrid distribution is
+#          only strong enough to prevent generation of negative values;
+#          both overshoots \& undershoots are possible).
+#   \item un-constrained PPM (nearly diffusion free; faster but
+#          positivity of the subgrid distribution is not quaranteed. Use
+#          this option only when the fields and winds are very smooth.
+#   \item Huynh/Van Leer/Lin full monotonicity constraint.  Only KORD can be
+#          set to 7 to enable the use of Huynh's 2nd monotonicity constraint
+#          for piece-wise parabolic distribution.
+#   \end {enumerate}
 
-  Recommended values:
+#   Recommended values:
 
-  \begin{itemize}
-  \item IORD=JORD=3 for high horizontal resolution.
-  \item KORD=3 or 7
-  \end{itemize}
+#   \begin{itemize}
+#   \item IORD=JORD=3 for high horizontal resolution.
+#   \item KORD=3 or 7
+#   \end{itemize}
 
-  The implicit numerical diffusion decreases as \_ORD increases.
-  DO NOT use option 4 or 5 for non-positive definite scalars
-  (such as Ertel Potential Vorticity).
-\\
-\\
- In GEOS-Chem we have been using IORD=3, JORD=3, KORD=7.  We have tested
- the OpenMP parallelization with these options.  GEOS-Chem users who wish to
- use different (I,J,K)ORD options should consider doing single-procsessor
- vs. multi-processor tests to test the implementation of the parallelization.
+#   The implicit numerical diffusion decreases as \_ORD increases.
+#   DO NOT use option 4 or 5 for non-positive definite scalars
+#   (such as Ertel Potential Vorticity).
+# \\
+# \\
+#  In GEOS-Chem we have been using IORD=3, JORD=3, KORD=7.  We have tested
+#  the OpenMP parallelization with these options.  GEOS-Chem users who wish to
+#  use different (I,J,K)ORD options should consider doing single-procsessor
+#  vs. multi-processor tests to test the implementation of the parallelization.
 
-\subsection*{GEOS-4 and GEOS-5 Hybrid Grid Definition}
+# \subsection*{GEOS-4 and GEOS-5 Hybrid Grid Definition}
 
-  For GEOS-4 and GEOS-5 met fields, the pressure at the bottom edge of
-  grid box (I,J,L) is defined as follows:
+#   For GEOS-4 and GEOS-5 met fields, the pressure at the bottom edge of
+#   grid box (I,J,L) is defined as follows:
 
-     $$P_{edge}(I,J,L) = A_{k}(L) + [ B_{k}(L) * P_{surface}(I,J) ]$$
+#      \$\$P_{edge}(I,J,L) = A_{k}(L) + [ B_{k}(L) * P_{surface}(I,J) ]\$\$
 
-  where
+#   where
 
-  \begin{itemize}
-  \item $P_{surface}$(I,J) is the "true" surface pressure at lon,lat (I,J)
-  \item $A_{k}$(L) has the same units as surface pressure [hPa]
-  \item $B_{k}$(L) is a unitless constant given at level edges
-  \end{itemize}
+#   \begin{itemize}
+#   \item \$P_{surface}\$(I,J) is the "true" surface pressure at lon,lat (I,J)
+#   \item \$A_{k}\$(L) has the same units as surface pressure [hPa]
+#   \item \$B_{k}\$(L) is a unitless constant given at level edges
+#   \end{itemize}
 
-  \$A_{k}(L)\$ and \$B_{k}(L)\$ are supplied to us by GMAO.
-\\
-\\
- !REMARKS:
-  Ak(L) and Bk(L) are defined at layer edges.
-
-
-                  /////////////////////////////////
-              / \ ------ Model top P=ak(1) --------- ak(1), bk(1)
-               |
-    delp(1)    |  ........... q(i,j,1) ............
-               |
-              \ / ---------------------------------  ak(2), bk(2)
+#   \$A_{k}(L)\$ and \$B_{k}(L)\$ are supplied to us by GMAO.
+# \\
+# \\
+#  !REMARKS:
+#   Ak(L) and Bk(L) are defined at layer edges.
 
 
-
-              / \ ---------------------------------  ak(k), bk(k)
-               |
-    delp(k)    |  ........... q(i,j,k) ............
-               |
-              \ / ---------------------------------  ak(k+1), bk(k+1)
+#                   /////////////////////////////////
+#               / \ ------ Model top P=ak(1) --------- ak(1), bk(1)
+#                |
+#     delp(1)    |  ........... q(i,j,1) ............
+#                |
+#               \ / ---------------------------------  ak(2), bk(2)
 
 
 
-              / \ ---------------------------------  ak(km), bk(km)
-               |
-    delp(km)   |  ........... q(i,j,km) .........
-               |
-              \ / -----Earth's surface P=Psfc ------ ak(km+1), bk(km+1)
-                 //////////////////////////////////
+#               / \ ---------------------------------  ak(k), bk(k)
+#                |
+#     delp(k)    |  ........... q(i,j,k) ............
+#                |
+#               \ / ---------------------------------  ak(k+1), bk(k+1)
 
- Note: surface pressure can be of any unit (e.g., pascal or mb) as
- long as it is consistent with the definition of (ak, bk) defined above.
 
-Winds (u,v), ps, and q are assumed to be defined at the same points.
 
-The latitudes are given to the initialization routine: init_tpcore.
+#               / \ ---------------------------------  ak(km), bk(km)
+#                |
+#     delp(km)   |  ........... q(i,j,km) .........
+#                |
+#               \ / -----Earth's surface P=Psfc ------ ak(km+1), bk(km+1)
+#                  //////////////////////////////////
 
-## Author
-Original code from Shian-Jiann Lin, GMAO \\
-Modified for GMI model by John Tannahill, LLNL (jrt@llnl.gov) \\
-Implemented into GEOS-Chem by Claire Carouge (ccarouge@seas.harvard.edu) \\
-ProTeX documentation added by Bob Yantosca (yantosca@seas.harvard.edu) \\
-OpenMP parallelization added by Bob Yantosca (yantosca@seas.harvard.edu)
+#  Note: surface pressure can be of any unit (e.g., pascal or mb) as
+#  long as it is consistent with the definition of (ak, bk) defined above.
 
-## Revision History
-05 Dec 2008 - C. Carouge - Replaced TPCORE routines by S-J Lin and Kevin Yeh with the TPCORE routines from the GMI model. This eliminates the polar overshoot in the stratosphere. \\
-See https://github.com/geoschem/geos-chem for complete history
-"""
+# Winds (u,v), ps, and q are assumed to be defined at the same points.
+
+# The latitudes are given to the initialization routine: init_tpcore.
+
+# ## Author
+# Original code from Shian-Jiann Lin, GMAO \\
+# Modified for GMI model by John Tannahill, LLNL (jrt@llnl.gov) \\
+# Implemented into GEOS-Chem by Claire Carouge (ccarouge@seas.harvard.edu) \\
+# ProTeX documentation added by Bob Yantosca (yantosca@seas.harvard.edu) \\
+# OpenMP parallelization added by Bob Yantosca (yantosca@seas.harvard.edu)
+
+# ## Revision History
+# 05 Dec 2008 - C. Carouge - Replaced TPCORE routines by S-J Lin and Kevin Yeh with the TPCORE routines from the GMI model. This eliminates the polar overshoot in the stratosphere. \\
+# See https://github.com/geoschem/geos-chem for complete history
+# """
 module tpcore_fvdas_mod
 
 export init_tpcore!, exit_tpcore!, tpcore_fvdas!
@@ -142,6 +142,11 @@ global tpcore_fvdas_mod_cosp::Vector{Float64}
 global tpcore_fvdas_mod_cose::Vector{Float64}
 global tpcore_fvdas_mod_gw::Vector{Float64}
 global tpcore_fvdas_mod_dlat::Vector{Float64}
+
+mutable struct StateChm
+end
+mutable struct StateDiag
+end
 
 """
 Allocates and initializes all module variables.
@@ -267,6 +272,10 @@ tpcore_fvdas_save::Bool = true
 # controls various options in E-W; N-S; vertcal advection
 tpcore_fvdas_ilmt::Int, tpcore_fvdas_jlmt::Int, tpcore_fvdas_klmt::Int = 0, 0, 0
 
+# 2=floating pressure
+const TPCORE_FVDAS_ADVEC_CONSRV_OPT = 2
+const TPCORE_FVDAS_CROSS = true
+
 """
 Takes horizontal winds on sigma (or hybrid sigma-p) surfaces and calculates mass fluxes, and then updates the 3D mixing ratio fields one time step (tdt).  The basic scheme is a Multi-Dimensional Flux Form Semi-Lagrangian (FFSL) based on the van Leer or PPM (see Lin and Rood, 1995).
 
@@ -333,12 +342,9 @@ function tpcore_fvdas!(
     ymass::Array{Float64,3},
     fill::Bool,
     area_m2::Vector{Float64},
-    state_chm::State_Chm,
-    state_diag::State_Diag
+    state_chm::StateChm,
+    state_diag::StateDiag
 )::Nothing
-    # 2=floating pressure
-    const ADVEC_CONSRV_OPT = 2
-    const CROSS = true
     rj2m1::Int64
     j1p::Int64, j2p::Int64
     jn::Vector{Int64} = zeros(km)
@@ -1054,6 +1060,8 @@ function calc_advec_cross_terms!(
     end
 end
 
+const QCKXYZ_FILL_DIAG = false
+
 """
 Check for "filling".
     
@@ -1099,8 +1107,6 @@ function qckxyz!(
     k1::Int64,
     k2::Int64
 )::Nothing
-    const fill_diag = false
-
     il::Int64, ij::Int64, ik::Int64 = 0, 0, 0
     dup::Float64, qup::Float64 = 0.0, 0.0
     qly::Float64 = 0.0
@@ -3475,7 +3481,7 @@ Implemented into GEOS-Chem by Claire Carouge (ccarouge@seas.harvard.edu)
 Subroutine from pjc_pfix. Call this one once everything is working fine.
 
 ## Revision History
-- 05 Dec 2008 - C. Carouge - Replaced TPCORE routines by S-J Lin and Kevin Yeh with the TPCORE routines from GMI model. This eliminates the polar overshoot in the stratosphere. \\
+05 Dec 2008 - C. Carouge - Replaced TPCORE routines by S-J Lin and Kevin Yeh with the TPCORE routines from GMI model. This eliminates the polar overshoot in the stratosphere.
 See https://github.com/geoschem/geos-chem for complete history
 """
 function average_press_poles!(

@@ -2,3 +2,7 @@ name = "GeosCore"
 uuid = "40a81ec6-a36c-443c-a67d-1303de90e991"
 authors = ["jaacko-torus <jaacko.torus@gmail.com>"]
 version = "0.1.0"
+
+[deps]
+Headers = "4942f60a-fa2c-4bf9-a8e8-f12c00221e70"
+StaticLint = "b3cc710f-9c33-5bdb-a03d-a94903873e97"
