@@ -167,14 +167,14 @@ function init_tpcore!(
     im::Int64,
     jm::Int64,
     km::Int64,
-    jfirst::Int64,
-    jlast::Int64,
+    jfirst::Ref{Int64},
+    jlast::Ref{Int64},
     ng::Int64,
     mg::Int64,
     dt::Float64,
     ae::Float64,
     clat::Array{Float64,1},
-    rc::Int64
+    rc::Ref{Int64}
 )::Nothing
     # cell edge latitude in radian
     elat::Vector{Float64} = zeros(jm + 1)
@@ -183,16 +183,15 @@ function init_tpcore!(
     dlon::Float64 = 0.0
     i::Int64, j::Int64 = 0, 0
 
-    # NOTE: untranslated
-    # RC = GC_SUCCESS
+    rc[] = GC_SUCCESS
     errmsg = ""
     thisloc = " -> at Init_Tpcore (in module GeosCore/tpcore_fvas_mod.F90)"
 
     # Since we are not using MPI parallelization, we can set JFIRST and JLAST to the global grid limits in latitude. (bmy, 12/3/08)
-    jfirst = 1
-    jlast = jm
+    jfirst[] = 1
+    jlast[] = jm
 
-    if jlast - jfirst < 2
+    if jlast[] - jfirst[] < 2
         println("Minimum size of subdomain is 3")
     end
 
@@ -1192,42 +1191,42 @@ John Tannahill, LLNL (jrt@llnl.gov)
 See https://github.com/geoschem/geos-chem for complete history
 """
 function set_lmts!(
-    ilmt::Int64,
-    jlmt::Int64,
-    klmt::Int64,
+    ilmt::Ref{Int64},
+    jlmt::Ref{Int64},
+    klmt::Ref{Int64},
     i2_gl::Int64,
     j2_gl::Int64,
-    iord::Int64,
-    jord::Int64,
-    kord::Int64,
+    iord::Ref{Int64},
+    jord::Ref{Int64},
+    kord::Ref{Int64},
 )::Nothing
     j2_glm1::Int64 = j2_gl - 1
 
-    if iord <= 0
+    if iord[] <= 0
         if i2_gl >= 144
-            ilmt = 0
+            ilmt[] = 0
         elseif i2_gl >= 72
-            ilmt = 1
+            ilmt[] = 1
         else
-            ilmt = 2
+            ilmt[] = 2
         end
     else
-        ilmt = iord - 3
+        ilmt[] = iord[] - 3
     end
 
-    if jord <= 0
+    if jord[] <= 0
         if j2_glm1 >= 90
-            jlmt = 0
+            jlmt[] = 0
         elseif j2_glm1 >= 45
-            jlmt = 1
+            jlmt[] = 1
         else
-            jlmt = 2
+            jlmt[] = 2
         end
     else
-        jlmt = jord - 3
+        jlmt[] = jord[] - 3
     end
 
-    klmt = max(kord - 3, 0)
+    klmt[] = max(kord[] - 3, 0)
 end
 
 """
