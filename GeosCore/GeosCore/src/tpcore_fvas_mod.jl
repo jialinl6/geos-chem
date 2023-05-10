@@ -334,7 +334,7 @@ function tpcore_fvdas!(
     fill::Bool,
     area_m2::Vector{Float64},
     state_chm::State_Chm,
-    state_diag::State_Diag,
+    state_diag::State_Diag
 )::Nothing
     # 2=floating pressure
     const ADVEC_CONSRV_OPT = 2
@@ -679,7 +679,7 @@ function average_const_poles!(
     ilo::Int64,
     ihi::Int64,
     julo::Int64,
-    jhi::Int64,
+    jhi::Int64
 )::Nothing
     ik::Int64, il::Int64 = 0, 0
     meanq = 0.0
@@ -756,7 +756,7 @@ function set_cross_terms!(
     i2::Int,
     ju1::Int,
     j2::Int,
-    cross::Bool,
+    cross::Bool
 )::Nothing
     # Grid box indices for lon & lat.
     il::Int64, ij::Int64 = 0, 0
@@ -815,7 +815,7 @@ function calc_vert_mass_flux!(
     ju1::Int64,
     j2::Int64,
     k1::Int64,
-    k2::Int64,
+    k2::Int64
 )::Nothing
     ik::Int64, ij::Int64, il::Int64 = 0, 0, 0
 
@@ -887,7 +887,7 @@ function set_jn_js!(
     ju1::Int64,
     j2::Int64,
     k1::Int64,
-    k2::Int64,
+    k2::Int64
 )::Nothing
     il::Int64, ij::Int64, ik::Int64 = 0, 0, 0
 
@@ -982,7 +982,7 @@ function calc_advec_cross_terms!(
     i2::Int64,
     ju1::Int64,
     j2::Int64,
-    cross::Bool,
+    cross::Bool
 )::Nothing
     i::Int64, imp::Int64, il::Int64, ij::Int64, iu::Int64 = 0, 0, 0, 0, 0
     jv::Int64, iuw::Int64, iue::Int64 = 0, 0, 0
@@ -1097,7 +1097,7 @@ function qckxyz!(
     ju1::Int64,
     j2::Int64,
     k1::Int64,
-    k2::Int64,
+    k2::Int64
 )::Nothing
     const fill_diag = false
 
@@ -1198,7 +1198,7 @@ function set_lmts!(
     j2_gl::Int64,
     iord::Ref{Int64},
     jord::Ref{Int64},
-    kord::Ref{Int64},
+    kord::Ref{Int64}
 )::Nothing
     j2_glm1::Int64 = j2_gl - 1
 
@@ -1280,7 +1280,7 @@ function set_press_terms!(
     i1::Int64,
     i2::Int64,
     ju1::Int64,
-    j2::Int64,
+    j2::Int64
 )::Nothing
     il::Int64, ij::Int64 = 0, 0
 
@@ -1346,7 +1346,7 @@ function calc_courant!(
     i1::Int64,
     i2::Int64,
     ju1::Int64,
-    j2::Int64,
+    j2::Int64
 )::Nothing
     ij::Int64 = 0
 
@@ -1414,7 +1414,7 @@ function calc_divergence!(
     i1::Int64,
     i2::Int64,
     ju1::Int64,
-    j2::Int64,
+    j2::Int64
 )::Nothing
     il::Int64, ij::Int64 = 0, 0
 
@@ -1491,7 +1491,7 @@ function do_divergence_pole_sum!(
     i1::Int64,
     i2::Int64,
     ju1::Int64,
-    j2::Int64,
+    j2::Int64
 )::Nothing
     il::Int64
 
@@ -1574,7 +1574,7 @@ function do_cross_terms_pole_i2d2!(
     i1::Int64,
     i2::Int64,
     ju1::Int64,
-    j2::Int64,
+    j2::Int64
 )::Nothing
     il::Int64 = 0
 
@@ -1647,7 +1647,7 @@ function xadv_dao2!(
     i1::Int64,
     i2::Int64,
     ju1::Int64,
-    j2::Int64,
+    j2::Int64
 )::Nothing
     il::Int64, ij::Int64, iu::Int64 = 0, 0, 0
     imp::Int64, iue::Int64, iuw::Int64 = 0, 0, 0
@@ -1787,7 +1787,7 @@ function yadv_dao2!(
     i1::Int64,
     i2::Int64,
     ju1::Int64,
-    j2::Int64,
+    j2::Int64
 )::Nothing
     il::Int64, ij::Int64 = 0, 0
     jv::Int64 = 0
@@ -1876,7 +1876,7 @@ function do_yadv_pole_i2d2!(
     i1::Int64,
     i2::Int64,
     ju1::Int64,
-    j2::Int64,
+    j2::Int64
 )::Nothing
     qqu_copy::Matrix{Float64} = copy(qqu)
 
@@ -1948,7 +1948,7 @@ function do_yadv_pole_sum!(
     i1::Int64,
     i2::Int64,
     ju1::Int64,
-    j2::Int64,
+    j2::Int64
 )::Nothing
     il::Int64 = 0
 
@@ -2041,7 +2041,7 @@ function xtp!(
     i2::Int64,
     ju1::Int64,
     j2::Int64,
-    iord::Int64,
+    iord::Int64
 )::Nothing
     pu_copy::Matrix{Float64} = copy(pu)
     crx_copy::Matrix{Float64} = copy(crx)
@@ -2205,7 +2205,7 @@ function xmist!(
     i1::Int64,
     i2::Int64,
     ju1::Int64,
-    j2::Int64,
+    j2::Int64
 )::Nothing
     qqv_copy::Matrix{Float64} = copy(qqv)
 
@@ -2287,7 +2287,7 @@ function fxppm!(
     julo::Int64,
     jhi::Int64,
     i1::Int64,
-    i2::Int64,
+    i2::Int64
 )::Nothing
     crx_copy::Matrix{Float64} = copy(crx)
     dcx_copy::Matrix{Float64} = copy(dcx)
@@ -2415,7 +2415,7 @@ function lmtppm!(
     al::Vector{Float64},
     ar::Vector{Float64},
     dc::Vector{Float64},
-    qa::Vector{Float64},
+    qa::Vector{Float64}
 )::Nothing
     il::Int64 = 0
     a6da::Float64 = 0.0
@@ -2535,7 +2535,7 @@ function ytp!(
     i1_gl::Int64,
     i2_gl::Int64,
     ju1_gl::Int64,
-    j2_gl::Int64,
+    j2_gl::Int64
 )::Nothing
     geofac_copy::Vector{Float64} = copy(geofac)
     cry_copy::Matrix{Float64} = copy(cry)
@@ -2636,7 +2636,7 @@ function ymist!(
     i1::Int64,
     i2::Int64,
     ju1::Int64,
-    j2::Int64,
+    j2::Int64
 )::Nothing
     qqu_copy::Matrix{Float64} = copy(qqu)
 
@@ -2720,7 +2720,7 @@ function do_ymist_pole1_i2d2!(
     i1::Int64,
     i2::Int64,
     ju1::Int64,
-    j2::Int64,
+    j2::Int64
 )::Nothing
     qqu_copy::Matrix{Float64} = copy(qqu)
 
@@ -2797,7 +2797,7 @@ function do_ymist_pole2_i2d2!(
     i1::Int64,
     i2::Int64,
     ju1::Int64,
-    j2::Int64,
+    j2::Int64
 )::Nothing
     qqu_copy::Matrix{Float64} = copy(qqu)
 
@@ -2897,7 +2897,7 @@ function fyppm!(
     i1::Int64,
     i2::Int64,
     ju1::Int64,
-    j2::Int64,
+    j2::Int64
 )::Nothing
     cry_copy::Matrix{Float64} = copy(cry)
     dcy_copy::Matrix{Float64} = copy(dcy)
@@ -3080,7 +3080,7 @@ function do_ytp_pole_sum!(
     i1::Int64,
     i2::Int64,
     ju1::Int64,
-    j2::Int64,
+    j2::Int64
 )::Nothing
     il::Int64, ik::Int64 = 0, 0
     ri2::Float64 = 0.0
@@ -3191,7 +3191,7 @@ function fzppm!(
     ju1::Int64,
     j2::Int64,
     k1::Int64,
-    k2::Int64,
+    k2::Int64
 )::Nothing
     delp1_copy::Array{Float64,3} = copy(delp1)
     wz_copy::Array{Float64,3} = copy(wz)
