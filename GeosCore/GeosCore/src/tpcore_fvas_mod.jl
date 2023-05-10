@@ -82,7 +82,7 @@ BOP
   \item $B_{k}$(L) is a unitless constant given at level edges
   \end{itemize}
 
-  $A_{k}(L)$ and $B_{k}(L)$ are supplied to us by GMAO.
+  \$A_{k}(L)\$ and \$B_{k}(L)\$ are supplied to us by GMAO.
 \\
 \\
  !REMARKS:
@@ -180,23 +180,22 @@ function init_tpcore!(
     elat::Vector{Float64} = zeros(jm + 1)
     sine::Vector{Float64} = zeros(jm + 1)
     sine_25::Vector{Float64} = zeros(jm + 1)
-    dlon::Float64
-    i::Int64
-    j::Int64
+    dlon::Float64 = 0.0
+    i::Int64, j::Int64 = 0, 0
 
     # NOTE: untranslated
     # RC = GC_SUCCESS
     errmsg = ""
     thisloc = " -> at Init_Tpcore (in module GeosCore/tpcore_fvas_mod.F90)"
-    
+
     # Since we are not using MPI parallelization, we can set JFIRST and JLAST to the global grid limits in latitude. (bmy, 12/3/08)
     jfirst = 1
     jlast = jm
-    
+
     if jlast - jfirst < 2
         println("Minimum size of subdomain is 3")
     end
-    
+
     global tpcore_fvdas_mod_dtdx5 = zeros(jm)
     global tpcore_fvdas_mod_dtdy5 = zeros(jm)
     global tpcore_fvdas_mod_cosp = zeros(jm)
@@ -204,35 +203,35 @@ function init_tpcore!(
     global tpcore_fvdas_mod_gw = zeros(jm)
     # For PJC pressure-fixer
     global tpcore_fvdas_mod_dlat = zeros(jm)
-    
+
     dlon = 2.0 * pi / im
-    
+
     elat[1] = -0.5 * pi
     sine[1] = -1.0
     sine_25[1] = -1.0
     tpcore_fvdas_mod_cose[1] = 0.0
-    
+
     for j in 2:jm
         elat[j] = 0.5 * (clat[j-1] + clat[j])
         sine[j] = sin(elat[j])
         sine_25[j] = sin(clat[j])
         tpcore_fvdas_mod_cose[j] = cos(elat[j])
     end
-    
+
     # N. Pole
     elat[jm+1] = 0.5 * π
     sine[jm+1] = 1.0
     sine_25[jm+1] = 1.0
-    
+
     # Polar cap (S. Pole)
     tpcore_fvdas_mod_dlat[1] = 2.0 * (elat[2] - elat[1])
     for j ∈ 2:jm-1
         tpcore_fvdas_mod_dlat[j] = elat[j+1] - elat[j]
     end
-    
+
     # Polar cap (N. Pole)
     tpcore_fvdas_mod_dlat[jm] = 2.0 * (elat[jm+1] - elat[jm])
-    
+
     for j in 1:jm
         tpcore_fvdas_mod_gw[j] = sine[j+1] - sine[j]
         tpcore_fvdas_mod_cosp[j] = tpcore_fvdas_mod_gw[j] / tpcore_fvdas_mod_dlat[j]
@@ -266,6 +265,8 @@ end
 #   END SUBROUTINE Exit_Tpcore
 
 tpcore_fvdas_save::Bool = true
+# controls various options in E-W; N-S; vertcal advection
+tpcore_fvdas_ilmt::Int, tpcore_fvdas_jlmt::Int, tpcore_fvdas_klmt::Int = 0, 0, 0
 
 """
 Takes horizontal winds on sigma (or hybrid sigma-p) surfaces and calculates mass fluxes, and then updates the 3D mixing ratio fields one time step (tdt).  The basic scheme is a Multi-Dimensional Flux Form Semi-Lagrangian (FFSL) based on the van Leer or PPM (see Lin and Rood, 1995).
@@ -340,23 +341,13 @@ function tpcore_fvdas!(
     const ADVEC_CONSRV_OPT = 2
     const CROSS = true
     rj2m1::Int64
-    j1p::Int64
-    j2p::Int64
+    j1p::Int64, j2p::Int64
     jn::Vector{Int64} = zeros(km)
     js::Vector{Int64} = zeros(km)
-    il::Int64
-    ij::Int64
-    ik::Int64
-    iq::Int64
-    k::Int64
-    j::Int64
-    i::Int64
-    Kflip::Int64
-    num::Int64
-    k2m1::Int64
-    s::Int64
-    north::Int64
-    south::Int64
+    il::Int64, ij::Int64, ik::Int64, iq::Int64, k::Int64, j::Int64, i::Int64, Kflip::Int64
+    num::Int64, k2m1::Int64, s::Int64
+    north::Int64, south::Int64
+
     dap::Vector{Float64} = zeros(km)
     dbk::Vector{Float64} = zeros(km)
 
@@ -374,9 +365,9 @@ function tpcore_fvdas!(
     # geometrical factor for meridional
     geofac::Vector{Float64} = zeros(jm)
     # geometrical gactor for poles.
-    geofac_pc::Float64
+    geofac_pc::Float64 = 0.0
 
-    dp::Float64
+    dp::Float64 = 0.0
     dps_ctm::Array{Float64,2} = zeros(im, jm)
     ua::Array{Float64,3} = zeros(im, jm, km)
     va::Array{Float64,3} = zeros(im, jm, km)
@@ -395,18 +386,10 @@ function tpcore_fvdas!(
     fy::Array{Float64,4} = zeros(im, jm + 1, km, nq)
     fz::Array{Float64,4} = zeros(im, jm, km, nq)
 
-    # controls various options in E-W advection
-    ilmt::Int
-    # controls various options in N-S advection
-    jlmt::Int
-    # controls various options in vertcal advection
-    klmt::Int
-
-    js2g0::Int
-    jn2g0::Int
+    js2g0::Int, jn2g0::Int = 0, 0
 
     # Add pointer to avoid array temporary in call to FZPPM (bmy, 6/5/13)
-    q_ptr::Array{Float64,3}
+    q_ptr::Array{Float64,3} = zeros()
 
     # Add definition of j1p and j2p for enlarge polar cap. (ccc, 11/20/08)
     j1p = 3
@@ -425,7 +408,7 @@ function tpcore_fvdas!(
 
     if first
         first = false
-        set_lmts!(ilmt, jlmt, klmt, im, jm, iord, jord, kord)
+        set_lmts!(tpcore_fvdas_ilmt, tpcore_fvdas_jlmt, tpcore_fvdas_klmt, im, jm, iord, jord, kord)
     end
 
     for ik ∈ 1:km
@@ -502,18 +485,19 @@ function tpcore_fvdas!(
 
             # Add advective form N-S operator for N-S cross terms.
             # use a polar cap of 2 boxes (i.e. the "2" as the first argument to YADV_DAO2.  The older TPCORE only had a polar cap of 1 box (just the Pole itself).  Claire figured this out.  (bmy, 12/11/08)
+            # TODO: Possible mistranslation
             yadv_dao2!(2, ady, qqu, va[:, :, ik], j1p, j2p, 1, im, 1, jm, 1, jm, 1, im)
 
             # update constituent array qq1 by adding in cross terms
             q_ptr[:, :, ik] .= q_ptr[:, :, ik] .+ ady .+ adx
 
-            xtp!(ilmt, north, south, pu[:, :, ik], cx[:, :, ik], dq1[:, :, ik], qqv, xmass[:, :, ik], fx(:, :, ik, iq), j1p, j2p, im, 1, jm, 1, im, 1, jm, 1, im, 1, jm, iord)
+            xtp!(tpcore_fvdas_ilmt, north, south, pu[:, :, ik], cx[:, :, ik], dq1[:, :, ik], qqv, xmass[:, :, ik], fx(:, :, ik, iq), j1p, j2p, im, 1, jm, 1, im, 1, jm, 1, im, 1, jm, iord)
 
             # TODO: Possible mistranslation
-            ytp!(jlmt, geofac_pc, geofac, cy[:, :, ik], dq1[:, :, ik], qqu, qqv, ymass[:, :, ik], fy[:, :, ik, iq], j1p, j2p, 1, im, 1, jm, im, 1, im, 1, jm, 1, im, 1, jm, jord)
+            ytp!(tpcore_fvdas_jlmt, geofac_pc, geofac, cy[:, :, ik], dq1[:, :, ik], qqu, qqv, ymass[:, :, ik], fy[:, :, ik, iq], j1p, j2p, 1, im, 1, jm, im, 1, im, 1, jm, 1, im, 1, jm, jord)
         end
 
-        fzppm!(klmt, delp1, wz, dq1, q_ptr, fz[:, :, :, iq], j1p, 1, jm, 1, im, 1, jm, im, km, 1, im, 1, jm, 1, km)
+        fzppm!(tpcore_fvdas_klmt, delp1, wz, dq1, q_ptr, fz[:, :, :, iq], j1p, 1, jm, 1, im, 1, jm, im, km, 1, im, 1, jm, 1, km)
 
         if fill
             qckxyz!(dq1, j1p, j2p, 1, jm, 1, im, 1, jm, 1, im, 1, jm, 1, km)
@@ -698,11 +682,8 @@ function average_const_poles!(
     julo::Int64,
     jhi::Int64,
 )::Nothing
-    ik::Int64
-    il::Int64
-    meanq::Float64
-    sum1::Float64
-    sum2::Float64
+    ik::Int64, il::Int64 = 0, 0
+    meanq = 0.0
 
     # pressure thickness at North Pole, the psudo-density in a hydrostatic system at t1 (mb)
     delp1n::Matrix{Float64} = zeros(i2:i1, j2-1:j2)
@@ -712,14 +693,14 @@ function average_const_poles!(
     if ju1 == ju1_gl
         delp1s[i1:i2, ju1:ju1+1] .= dap .+ dbk .* pctm1[i1:i2, ju1:ju1+1]
 
-        sum1 = 0.0
-        sum2 = 0.0
+        sum1::Float64 = 0.0
+        sum2::Float64 = 0.0
         for il in i1:i2
             sum1 += sum(const1[il, ju1:ju1+1] .* delp1s[il, ju1:ju1+1] .* rel_area[ju1:ju1+1]) / (sum(rel_area) * i2_gl)
             sum2 += sum(delp1s[il, ju1:ju1+1] .* rel_area[ju1:ju1+1]) / (sum(rel_area) * i2_gl)
         end
 
-        meanq = sum1 / sum2
+        meanq::Float64 = sum1 / sum2
 
         const1[:, ju1:ju1+1] .= meanq
     end
@@ -779,8 +760,7 @@ function set_cross_terms!(
     cross::Bool,
 )::Nothing
     # Grid box indices for lon & lat.
-    il::Int64
-    ij::Int64
+    il::Int64, ij::Int64 = 0, 0
 
     if !cross
         ua .= 0.0
@@ -838,9 +818,7 @@ function calc_vert_mass_flux!(
     k1::Int64,
     k2::Int64,
 )::Nothing
-    ik::Int64
-    ij::Int64
-    il::Int64
+    ik::Int64, ij::Int64, il::Int64 = 0, 0, 0
 
     # Compute vertical mass flux from mass conservation.
 
@@ -912,19 +890,13 @@ function set_jn_js!(
     k1::Int64,
     k2::Int64,
 )::Nothing
-    il::Int64
-    ij::Int64
-    ik::Int64
-    jn0::Int64
-    js0::Int64
-    jst::Int64
-    jend::Int64
+    il::Int64, ij::Int64, ik::Int64 = 0, 0, 0
 
-    js0 = (j2_gl + 1) / 2
-    jn0 = j2_gl - js0 + 1
+    js0::Int64 = (j2_gl + 1) / 2
+    jn0::Int64 = j2_gl - js0 + 1
 
-    jst = max(ju1, j1p)
-    jend = min(j2, js0)
+    jst::Int64 = max(ju1, j1p)
+    jend::Int64 = min(j2, js0)
 
     for ik ∈ k1:k2
         js[ik] = j1p
@@ -1013,18 +985,10 @@ function calc_advec_cross_terms!(
     j2::Int64,
     cross::Bool,
 )::Nothing
-    i::Int64
-    imp::Int64
-    il::Int64
-    ij::Int64
-    iu::Int64
-    jv::Int64
-    iuw::Int64
-    iue::Int64
-    ril::Float64
-    rij::Float64
-    riu::Float64
-    ru::Float64
+    i::Int64, imp::Int64, il::Int64, ij::Int64, iu::Int64 = 0, 0, 0, 0, 0
+    jv::Int64, iuw::Int64, iue::Int64 = 0, 0, 0
+    ril::Float64, rij::Float64, riu::Float64 = 0.0, 0.0, 0.0
+    ru::Float64 = 0.0
     qtmp::Matrix{Float64} = zeros(-i2/3:i2+i2/3, julo:jhi)
 
     for ij ∈ julo:jhi
@@ -1138,22 +1102,15 @@ function qckxyz!(
 )::Nothing
     const fill_diag = false
 
-    il::Int64
-    ij::Int64
-    ik::Int64
-    ip::Int64
-    k1p1::Int64
-    k2m1::Int64
-    dup::Float64
-    qup::Float64
-    qly::Float64
-    sum::Float64
+    il::Int64, ij::Int64, ik::Int64 = 0, 0, 0
+    dup::Float64, qup::Float64 = 0.0, 0.0
+    qly::Float64 = 0.0
 
-    ip = 0
+    ip::Int64 = 0
 
     # Top layer.
 
-    k1p1 = k1 + 1
+    k1p1::Int64 = k1 + 1
 
     for ij ∈ j1p:j2p
         for il ∈ i1:i2
@@ -1182,9 +1139,9 @@ function qckxyz!(
         end
     end
 
-    sum = 0.0
+    sum::Float64 = 0.0
 
-    k2m1 = k2 - 1
+    k2m1::Int64 = k2 - 1
 
     # NOTE: Sum seems to be not used in the loop below!
     for ij ∈ j1p:j2p
@@ -1244,9 +1201,7 @@ function set_lmts!(
     jord::Int64,
     kord::Int64,
 )::Nothing
-    j2_gl::Int64
-
-    j2_glm1 = j2_gl - 1
+    j2_glm1::Int64 = j2_gl - 1
 
     if iord <= 0
         if i2_gl >= 144
@@ -1328,8 +1283,7 @@ function set_press_terms!(
     ju1::Int64,
     j2::Int64,
 )::Nothing
-    il::Int64
-    ij::Int64
+    il::Int64, ij::Int64 = 0, 0
 
     delp1 .= dap .+ (dbk .* pres1)
     delpm .= dap .+ (dbk .* 0.5 .* (pres1 .+ pres2))
@@ -1395,7 +1349,7 @@ function calc_courant!(
     ju1::Int64,
     j2::Int64,
 )::Nothing
-    ij::Int64
+    ij::Int64 = 0
 
     crx .= 0.0
     cry .= 0.0
@@ -1463,8 +1417,7 @@ function calc_divergence!(
     ju1::Int64,
     j2::Int64,
 )::Nothing
-    il::Int64
-    ij::Int64
+    il::Int64, ij::Int64 = 0, 0
 
     # Calculate N-S divergence.
 
@@ -1542,13 +1495,13 @@ function do_divergence_pole_sum!(
     j2::Int64,
 )::Nothing
     il::Int64
-    ri2::Float64
-    mean_np::Float64
-    mean_sp::Float64
-    sumnp::Float64
-    sumsp::Float64
 
-    ri2 = i2_gl
+    mean_np::Float64 = 0.0
+    mean_sp::Float64 = 0.0
+    sumnp::Float64 = 0.0
+    sumsp::Float64 = 0.0
+
+    ri2::Float64 = i2_gl
 
     if ju1 == ju1_gl
         sumsp = 0.0
@@ -1624,10 +1577,9 @@ function do_cross_terms_pole_i2d2!(
     ju1::Int64,
     j2::Int64,
 )::Nothing
-    i2d2::Int64
-    il::Int64
+    il::Int64 = 0
 
-    i2d2 = i2_gl / 2
+    i2d2::Int64 = i2_gl / 2
 
     if j1p == ju1_gl + 1
         # Polar Cap NOT Enlarged: Get cross terms for N-S horizontal advection.
@@ -1698,19 +1650,12 @@ function xadv_dao2!(
     ju1::Int64,
     j2::Int64,
 )::Nothing
-    il::Int64
-    ij::Int64
-    iu::Int64
-    imp::Int64
-    iue::Int64
-    iuw::Int64
-    a1::Float64
-    b1::Float64
-    c1::Float64
-    rdiff::Float64
-    ril::Float64
-    riu::Float64
-    ru::Float64
+    il::Int64, ij::Int64, iu::Int64 = 0, 0, 0
+    imp::Int64, iue::Int64, iuw::Int64 = 0, 0, 0
+    a1::Float64, b1::Float64, c1::Float64 = 0.0, 0.0, 0.0
+    rdiff::Float64 = 0.0
+    ril::Float64, riu::Float64 = 0.0, 0.0
+    ru::Float64 = 0.0
 
     qtmp::Matrix{Float64} = zeros(-i2/3:i2+i2/3, julo:jhi)
 
@@ -1845,15 +1790,12 @@ function yadv_dao2!(
     ju1::Int64,
     j2::Int64,
 )::Nothing
-    il::Int64
-    ij::Int64
-    jv::Int64
-    a1::Float64
-    b1::Float64
-    c1::Float64
-    rij::Float64
-    rjv::Float64
-    rv::Float64
+    il::Int64, ij::Int64 = 0, 0
+    jv::Int64 = 0
+    a1::Float64, b1::Float64, c1::Float64 = 0.0, 0.0, 0.0
+    rij::Float64, rjv::Float64 = 0.0, 0.0
+    rv::Float64 = 0.0
+
     # We may need a small ghost zone depending on the polar cap used
     qquwk::Matrix{Float64} = zeros(ilo:ihi, julo-2:jhi+2)
 
@@ -1939,12 +1881,10 @@ function do_yadv_pole_i2d2!(
 )::Nothing
     qqu_copy::Matrix{Float64} = copy(qqu)
 
-    i2d2::Int64
-    il::Int64
-    ij::Int64
-    inb::Int64
+    il::Int64, ij::Int64 = 0, 0
+    inb::Int64 = 0
 
-    i2d2 = i2_gl / 2
+    i2d2::Int64 = i2_gl / 2
 
     if j1p == ju1_gl + 1
         # Polar Cap NOT Enlarged.
@@ -2011,18 +1951,15 @@ function do_yadv_pole_sum!(
     ju1::Int64,
     j2::Int64,
 )::Nothing
-    il::Int64
-    sumnp::Float64
-    sumsp::Float64
-    IS_EXT_POLAR_CAP::Bool
+    il::Int64 = 0
 
     # Test if we are using extended polar caps (i.e. the S pole and next N latitude and N. Pole and next S latitude). Do this outside the loops. (bmy, 12/11/08)
-    IS_EXT_POLAR_CAP = (j1p == ju1_gl + 2)
+    IS_EXT_POLAR_CAP::Bool = (j1p == ju1_gl + 2)
 
     # South Pole
 
-    sumsp = 0.0
-    sumnp = 0.0
+    sumsp::Float64 = 0.0
+    sumnp::Float64 = 0.0
 
     if IS_EXT_POLAR_CAP
         # For a 2-latitude polar cap (S. Pole + next Northward latitude)
@@ -2111,23 +2048,14 @@ function xtp!(
     crx_copy::Matrix{Float64} = copy(crx)
     xmass_copy::Matrix{Float64} = copy(xmass)
 
-    il::Int64
-    ij::Int64
-    ic::Int64
-    iu::Int64
-    ix::Int64
-    iuw::Int64
-    iue::Int64
-    imp::Int64
-    jvan::Int64
-    rc::Float64
-    ric::Float64
-    ril::Float64
+    il::Int64, ij::Int64, ic::Int64 = 0, 0, 0
+    iu::Int64, ix::Int64, iuw::Int64, iue::Int64, imp::Int64 = 0, 0, 0, 0, 0
+    rc::Float64 = 0.0
+    ric::Float64, ril::Float64 = 0.0, 0.0
     isav::Vector{Int64} = zeros(i1:i2)
     dcx::Matrix{Float64} = zeros(-i2/3:i2+i2/3, julo:jhi)
     qtmp::Matrix{Float64} = zeros(-i2/3:i2+i2/3, julo:jhi)
 
-    dcx .= 0.0
     fx .= 0.0
 
     imp = i2 + 1
@@ -2156,7 +2084,7 @@ function xtp!(
         xmist!(dcx, qtmp, j1p, j2p, i2_gl, ju1_gl, j2_gl, ilo, ihi, julo, jhi, i1, i2, ju1, j2)
     end
 
-    jvan = max(1, j2_gl / 18)
+    jvan::Int64 = max(1, j2_gl / 18)
 
     for ij ∈ j1p:j2p
         if ij > js && ij < jn
@@ -2282,14 +2210,11 @@ function xmist!(
 )::Nothing
     qqv_copy::Matrix{Float64} = copy(qqv)
 
-    il::Int64
-    ij::Int64
-    pmax::Float64
-    pmin::Float64
-    r24::Float64
-    tmp::Float64
+    il::Int64, ij::Int64 = 0, 0
+    pmax::Float64, pmin::Float64 = 0.0, 0.0
+    tmp::Float64 = 0.0
 
-    r24 = 1.0 / 24.0
+    r24::Float64 = 1.0 / 24.0
 
     for ij ∈ j1p+1:j2p-1
         for il ∈ i1:i2
@@ -2368,12 +2293,10 @@ function fxppm!(
     crx_copy::Matrix{Float64} = copy(crx)
     dcx_copy::Matrix{Float64} = copy(dcx)
 
-    il::Int64
-    ilm1::Int64
-    lenx::Int64
-    r13::Float64
-    r23::Float64
-    rval::Float64
+    il::Int64 = 0
+    ilm1::Int64 = 0
+    lenx::Int64 = 0
+    rval::Float64 = 0.0
 
     a6::Vector{Float64} = zeros(ilo:ihi)
     al::Vector{Float64} = zeros(ilo:ihi)
@@ -2384,17 +2307,8 @@ function fxppm!(
     dcxi1::Vector{Float64} = zeros((ihi - 1) - (ilo + 1) + 1)
     qqvi1::Vector{Float64} = zeros((ihi - 1) - (ilo + 1) + 1)
 
-    a6 .= 0.0
-    al .= 0.0
-    ar .= 0.0
-    a61 .= 0.0
-    al1 .= 0.0
-    ar1 .= 0.0
-    dcxi1 .= 0.0
-    qqvi1 .= 0.0
-
-    r13 = 1.0 / 3.0
-    r23 = 2.0 / 3.0
+    r13::Float64 = 1.0 / 3.0
+    r23::Float64 = 2.0 / 3.0
 
     for il ∈ ilo+1:ihi
         rval = 0.5 * (qqv[il-1, ij] + qqv[il, ij]) + (dcx_copy[il-1, ij] - dcx_copy[il, ij]) * r13
@@ -2504,15 +2418,11 @@ function lmtppm!(
     dc::Vector{Float64},
     qa::Vector{Float64},
 )::Nothing
-    il::Int64
-    a6da::Float64
-    da1::Float64
-    da2::Float64
-    fmin::Float64
-    ftmp::Float64
-    r12::Float64
-
-    r12 = 1.0 / 12.0
+    il::Int64 = 0
+    a6da::Float64 = 0.0
+    da1::Float64, da2::Float64 = 0.0, 0.0
+    fmin::Float64, ftmp::Float64 = 0.0, 0.0
+    r12::Float64 = 1.0 / 12.0
 
     if lmt == 0
         for il = 1:lenx
@@ -2632,10 +2542,9 @@ function ytp!(
     cry_copy::Matrix{Float64} = copy(cry)
     ymass_copy::Matrix{Float64} = copy(ymass)
 
-    il::Int64
-    ij::Int64
-    jv::Int64
-    rj1p::Float64
+    il::Int64, ij::Int64 = 0, 0
+    jv::Int64 = 0
+    rj1p::Float64 = 0.0
 
     dcy::Matrix{Float64} = zeros(i1_gl:i2_gl, ju1_gl:j2_gl)
 
@@ -2732,16 +2641,13 @@ function ymist!(
 )::Nothing
     qqu_copy::Matrix{Float64} = copy(qqu)
 
-    il::Int64
-    ij::Int64
-    pmax::Float64
-    pmin::Float64
-    r24::Float64
-    tmp::Float64
+    il::Int64, ij::Int64 = 0, 0
+    pmax::Float64, pmin::Float64 = 0.0, 0.0
+    tmp::Float64 = 0.0
 
     qtmp::Matrix{Float64} = zeros(ilo:ihi, julo-2:jhi+2)
 
-    r24 = 1.0 / 24.0
+    r24::Float64 = 1.0 / 24.0
 
     # Populate qtmp
     qtmp .= 0.0
@@ -2819,15 +2725,12 @@ function do_ymist_pole1_i2d2!(
 )::Nothing
     qqu_copy::Matrix{Float64} = copy(qqu)
 
-    i2d2::Int64
-    il::Int64
-    pmax::Float64
-    pmin::Float64
-    r24::Float64
-    tmp::Float64
+    il::Int64 = 0
+    pmax::Float64, pmin::Float64 = 0.0, 0.0
+    tmp::Float64 = 0.0
 
-    i2d2 = i2_gl / 2
-    r24 = 1.0 / 24.0
+    i2d2::Int64 = i2_gl / 2
+    r24::Float64 = 1.0 / 24.0
 
     if ju1 == ju1_gl
         for il = i1:i2d2
@@ -2899,13 +2802,11 @@ function do_ymist_pole2_i2d2!(
 )::Nothing
     qqu_copy::Matrix{Float64} = copy(qqu)
 
-    i2d2::Int64
-    il::Int64
-    pmax::Float64
-    pmin::Float64
-    tmp::Float64
+    il::Int64 = 0
+    pmax::Float64, pmin::Float64 = 0.0, 0.0
+    tmp::Float64 = 0.0
 
-    i2d2 = i2_gl / 2
+    i2d2::Int64 = i2_gl / 2
 
     if ju1 == ju1_gl
         if j1p != ju1_gl + 1
@@ -3003,12 +2904,10 @@ function fyppm!(
     dcy_copy::Matrix{Float64} = copy(dcy)
     qqu_copy::Matrix{Float64} = copy(qqu)
 
-    ijm1::Int64
-    il::Int64
-    ij::Int64
-    lenx::Int64
-    r13::Float64
-    r23::Float64
+    ijm1::Int64 = 0
+    il::Int64, ij::Int64 = 0, 0
+    lenx::Int64 = 0
+    r13::Float64, r23::Float64 = 0.0, 0.0
 
     a61::Matrix{Float64} = zeros(ilong * ((jhi - 1) - (julo + 1) + 1))
     al1::Matrix{Float64} = zeros(ilong * ((jhi - 1) - (julo + 1) + 1))
@@ -3110,25 +3009,22 @@ See https://github.com/geoschem/geos-chem for complete history
 function do_fyppm_pole_i2d2!(
     al::Matrix{Float64},
     ar::Matrix{Float64},
-    i1_gl::Int,
-    i2_gl::Int,
-    ju1_gl::Int,
-    j2_gl::Int,
-    ilo::Int,
-    ihi::Int,
-    julo::Int,
-    jhi::Int,
-    i1::Int,
-    i2::Int,
-    ju1::Int,
-    j2::Int,
+    i1_gl::Int64,
+    i2_gl::Int64,
+    ju1_gl::Int64,
+    j2_gl::Int64,
+    ilo::Int64,
+    ihi::Int64,
+    julo::Int64,
+    jhi::Int64,
+    i1::Int64,
+    i2::Int64,
+    ju1::Int64,
+    j2::Int64
 )::Nothing
-    i2d2::Int64
-    il::Int64
+    i2d2::Int64 = i2_gl / 2
 
-    i2d2 = i2_gl / 2
-
-    for il ∈ i1:i2d2
+    for il::Int64 ∈ i1:i2d2
         al[il, ju1] = al[il+i2d2, ju1+1]
         al[il+i2d2, ju1] = al[il, ju1+1]
         ar[il, j2] = ar[il+i2d2, j2-1]
@@ -3187,14 +3083,13 @@ function do_ytp_pole_sum!(
     ju1::Int64,
     j2::Int64,
 )::Nothing
-    il::Int64
-    ik::Int64
-    ri2::Float64
-    dq_np::Float64
-    dq_sp::Float64
+    il::Int64, ik::Int64 = 0, 0
+    ri2::Float64 = 0.0
+    dq_np::Float64 = 0.0
+    dq_sp::Float64 = 0.0
     dqik::Vector{Float64} = zeros(2)
-    sumnp::Float64
-    sumsp::Float64
+    sumnp::Float64 = 0.0
+    sumsp::Float64 = 0.0
 
     ri2 = i2_gl
     dqik .= 0.0
@@ -3303,32 +3198,20 @@ function fzppm!(
     wz_copy::Array{Float64,3} = copy(wz)
     qq1_copy::Array{Float64,3} = copy(qq1)
 
-    il::Int64
-    ij::Int64
-    ik::Int64
-    k1p1::Int64
-    k1p2::Int64
-    k2m1::Int64
-    k2m2::Int64
-    lenx::Int64
-    a1::Float64
-    a2::Float64
-    aa::Float64
-    bb::Float64
-    c0::Float64
-    c1::Float64
-    c2::Float64
-    cm::Float64
-    cp::Float64
-    fac1::Float64
-    fac2::Float64
-    lac::Float64
-    qmax::Float64
-    qmin::Float64
-    qmp::Float64
-    r13::Float64
-    r23::Float64
-    tmp::Float64
+    il::Int64, ij::Int64, ik::Int64 = 0, 0, 0
+    k1p1::Int64, k1p2::Int64 = 0, 0
+    k2m1::Int64, k2m2::Int64 = 0, 0
+    lenx::Int64 = 0
+    a1::Float64, a2::Float64 = 0.0, 0.0
+    aa::Float64, bb::Float64 = 0.0, 0.0
+    c0::Float64, c1::Float64, c2::Float64 = 0.0, 0.0, 0.0
+    cm::Float64, cp::Float64 = 0.0, 0.0
+    fac1::Float64, fac2::Float64 = 0.0, 0.0
+    lac::Float64 = 0.0
+    qmax::Float64, qmin::Float64 = 0.0, 0.0
+    qmp::Float64 = 0.0
+    r13::Float64, r23::Float64 = 0.0, 0.0
+    tmp::Float64 = 0.0
 
     a61::Vector{Float64} = zeros(ilong * (ivert - 4))
     al1::Vector{Float64} = zeros(ilong * (ivert - 4))
@@ -3606,15 +3489,14 @@ function average_press_poles!(
     ilo::Int64,
     ihi::Int64,
     julo::Int64,
-    jhi::Int64,
+    jhi::Int64
 )::Nothing
     area_1d_copy::Vector{Float64} = copy(area_1d)
 
-    i::Int64
-    j::Int64
-    meanp::Float64
+    i::Int64, j::Int64 = 0, 0
+    meanp::Float64 = 0.0
     rel_area::Vector{Float64} = zeros(ju1:j2)
-    sum_area::Float64
+    sum_area::Float64 = 0.0
 
     # Compute the sum of surface area
     sum_area = sum(area_1d_copy) * i2
